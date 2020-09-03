@@ -1,0 +1,20 @@
+name: lint
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+jobs:
+  golangci:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v1
+        with:
+          version: v1.30
+          config: .golangci.yml
