@@ -2,6 +2,8 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/golang.yandex/hasql)](https://pkg.go.dev/golang.yandex/hasql)
 [![GoDoc](https://godoc.org/golang.yandex/hasql?status.svg)](https://godoc.org/golang.yandex/hasql)
+![tests](https://github.com/yandex/go-hasql/workflows/tests/badge.svg?branch=master)
+![lint](https://github.com/yandex/go-hasql/workflows/lint/badge.svg?branch=master)
 
 `hasql` provides simple and reliable way to access high-availability database setups with multiple hosts.
 
