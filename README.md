@@ -7,6 +7,11 @@
 
 `hasql` provides simple and reliable way to access high-availability database setups with multiple hosts.
 
+## Status
+`hasql` is production-ready and is actively used inside Yandex' production environment.
+
+Although it is released as v0.9.0, it is done so only to enable possible API changes based on community feedback.
+
 ## Prerequisites
 
 - **[Go](https://golang.org)**: any one of the **two latest major** [releases](https://golang.org/doc/devel/release.html).
