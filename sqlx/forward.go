@@ -21,11 +21,12 @@ import "golang.yandex/hasql"
 //nolint:golint
 // Forwarded types
 type (
-	ClusterOption = hasql.ClusterOption
-	NodeStatus    = hasql.NodeStateCriteria
-	NodeChecker   = hasql.NodeChecker
-	NodePicker    = hasql.NodePicker
-	Tracer        = hasql.Tracer
+	ClusterOption     = hasql.ClusterOption
+	NodeStateCriteria = hasql.NodeStateCriteria
+	NodeChecker       = hasql.NodeChecker
+	NodePicker        = hasql.NodePicker
+	AliveNodes        = hasql.AliveNodes
+	Tracer            = hasql.Tracer
 )
 
 // Forwarded variables and functions

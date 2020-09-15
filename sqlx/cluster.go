@@ -70,8 +70,8 @@ func (cl *Cluster) WaitForStandbyPreferred(ctx context.Context) (Node, error) {
 }
 
 // WaitForNode with specified status to appear or until context is canceled
-func (cl *Cluster) WaitForNode(ctx context.Context, ns NodeStatus) (Node, error) {
-	return checkedSQLxNode(cl.Cluster.WaitForNode(ctx, ns))
+func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (Node, error) {
+	return checkedSQLxNode(cl.Cluster.WaitForNode(ctx, criteria))
 }
 
 // Alive returns node that is considered alive
@@ -100,6 +100,6 @@ func (cl *Cluster) StandbyPreferred() Node {
 }
 
 // Node returns cluster node with specified status.
-func (cl *Cluster) Node(ns NodeStatus) Node {
-	return uncheckedSQLxNode(cl.Cluster.Node(ns))
+func (cl *Cluster) Node(criteria NodeStateCriteria) Node {
+	return uncheckedSQLxNode(cl.Cluster.Node(criteria))
 }
