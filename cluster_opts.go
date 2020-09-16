@@ -36,9 +36,9 @@ func WithUpdateTimeout(d time.Duration) ClusterOption {
 }
 
 // WithNodePicker sets algorithm for node selection (e.g. random, round robin etc)
-func WithNodePicker(f NodePicker) ClusterOption {
+func WithNodePicker(picker NodePicker) ClusterOption {
 	return func(cl *Cluster) {
-		cl.pickNode = f
+		cl.picker = picker
 	}
 }
 

@@ -30,13 +30,13 @@ type Cluster struct {
 
 // NewCluster constructs cluster object representing a single 'cluster' of SQL database.
 // Close function must be called when cluster is not needed anymore.
-func NewCluster(nodes []Node, checkNode NodeChecker, opts ...ClusterOption) (*Cluster, error) {
+func NewCluster(nodes []Node, checker NodeChecker, opts ...ClusterOption) (*Cluster, error) {
 	sqlNodes := make([]hasql.Node, 0, len(nodes))
 	for _, n := range nodes {
 		sqlNodes = append(sqlNodes, n)
 	}
 
-	cl, err := hasql.NewCluster(sqlNodes, checkNode, opts...)
+	cl, err := hasql.NewCluster(sqlNodes, checker, opts...)
 	if err != nil {
 		return nil, err
 	}

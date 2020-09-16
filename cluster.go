@@ -51,8 +51,8 @@ type Cluster struct {
 	// Configuration
 	updateInterval time.Duration
 	updateTimeout  time.Duration
-	checkNode      NodeChecker
-	pickNode       NodePicker
+	checker        NodeChecker
+	picker         NodePicker
 
 	// Status
 	updateStopper chan struct{}
@@ -66,7 +66,7 @@ type Cluster struct {
 
 // NewCluster constructs cluster object representing a single 'cluster' of SQL database.
 // Close function must be called when cluster is not needed anymore.
-func NewCluster(nodes []Node, checkNode NodeChecker, opts ...ClusterOption) (*Cluster, error) {
+func NewCluster(nodes []Node, checker NodeChecker, opts ...ClusterOption) (*Cluster, error) {
 	// Validate nodes
 	if len(nodes) == 0 {
 		return nil, errors.New("no nodes provided")
@@ -86,8 +86,8 @@ func NewCluster(nodes []Node, checkNode NodeChecker, opts ...ClusterOption) (*Cl
 		updateStopper:  make(chan struct{}),
 		updateInterval: DefaultUpdateInterval,
 		updateTimeout:  DefaultUpdateTimeout,
-		checkNode:      checkNode,
-		pickNode:       PickNodeRandom(),
+		checker:        checker,
+		picker:         PickNodeRandom(),
 		nodes:          nodes,
 	}
 
@@ -211,7 +211,7 @@ func (cl *Cluster) alive(nodes AliveNodes) Node {
 		return nil
 	}
 
-	return cl.pickNode(nodes.Alive)
+	return cl.picker(nodes.Alive)
 }
 
 // Primary returns first available node that is considered alive and is primary (able to execute write operations)
@@ -224,7 +224,7 @@ func (cl *Cluster) primary(nodes AliveNodes) Node {
 		return nil
 	}
 
-	return cl.pickNode(nodes.Primaries)
+	return cl.picker(nodes.Primaries)
 }
 
 // Standby returns node that is considered alive and is standby (unable to execute write operations)
@@ -238,7 +238,7 @@ func (cl *Cluster) standby(nodes AliveNodes) Node {
 	}
 
 	// select one of standbys
-	return cl.pickNode(nodes.Standbys)
+	return cl.picker(nodes.Standbys)
 }
 
 // PrimaryPreferred returns primary node if possible, standby otherwise
@@ -331,7 +331,7 @@ func (cl *Cluster) updateNodes() {
 		go func(node Node, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			primary, err := checkNode(ctx, node, cl.checkNode)
+			primary, err := checkNode(ctx, node, cl.checker)
 			if err != nil {
 				if cl.tracer.NodeDead != nil {
 					cl.tracer.NodeDead(node, err)

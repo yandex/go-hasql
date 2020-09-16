@@ -58,8 +58,8 @@ func (n *sqlNode) String() string {
 }
 
 // checkNode checks if the node is alive and whether it is primary or not
-func checkNode(ctx context.Context, node Node, checkNode NodeChecker) (bool, error) {
-	primary, err := checkNode(ctx, node.DB())
+func checkNode(ctx context.Context, node Node, checker NodeChecker) (bool, error) {
+	primary, err := checker(ctx, node.DB())
 	if err != nil {
 		return false, err
 	}
