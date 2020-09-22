@@ -40,7 +40,7 @@ $ go get -u golang.yandex/hasql
 dbFoo, _ := sql.Open("pgx", "host=foo")
 dbBar, _ := sql.Open("pgx", "host=bar")
 cl, err := hasql.NewCluster(
-    []hasql.Node{hasql.NewNode("foo", fbFoo), hasql.NewNode("bar", dbBar) },
+    []hasql.Node{hasql.NewNode("foo", dbFoo), hasql.NewNode("bar", dbBar) },
     checkers.PostgreSQL,
 )
 if err != nil { ... }
