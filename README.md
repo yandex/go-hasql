@@ -4,6 +4,7 @@
 [![GoDoc](https://godoc.org/golang.yandex/hasql?status.svg)](https://godoc.org/golang.yandex/hasql)
 ![tests](https://github.com/yandex/go-hasql/workflows/tests/badge.svg?branch=master)
 ![lint](https://github.com/yandex/go-hasql/workflows/lint/badge.svg?branch=master)
+[![codecov](https://codecov.io/gh/yandex/go-hasql/branch/master/graph/badge.svg)](https://codecov.io/gh/yandex/go-hasql)
 
 `hasql` provides simple and reliable way to access high-availability database setups with multiple hosts.
 
