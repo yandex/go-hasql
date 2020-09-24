@@ -21,6 +21,9 @@ import (
 	"database/sql"
 	"time"
 
+	// This example assumes you use pgx driver, but you can use anything that supports database/sql
+	// _ "github.com/jackc/pgx/v4/stdlib"
+
 	"golang.yandex/hasql"
 	"golang.yandex/hasql/checkers"
 )
@@ -32,16 +35,16 @@ func ExampleNewCluster() {
 		Connstring string
 	}{
 		{
-			Addr:       "host1.yandex-team.ru",
-			Connstring: "host=host1.yandex-team.ru",
+			Addr:       "host1.example.com",
+			Connstring: "host=host1.example.com",
 		},
 		{
-			Addr:       "host2.yandex-team.ru",
-			Connstring: "host=host2.yandex-team.ru",
+			Addr:       "host2.example.com",
+			Connstring: "host=host2.example.com",
 		},
 		{
-			Addr:       "host3.yandex-team.ru",
-			Connstring: "host=host3.yandex-team.ru",
+			Addr:       "host3.example.com",
+			Connstring: "host=host3.example.com",
 		},
 	}
 
@@ -49,7 +52,10 @@ func ExampleNewCluster() {
 	nodes := make([]hasql.Node, 0, len(hosts))
 	for _, host := range hosts {
 		// Create database pools for each node
-		db, _ := sql.Open("pgx", host.Connstring)
+		db, err := sql.Open("pgx", host.Connstring)
+		if err != nil {
+			panic(err)
+		}
 		nodes = append(nodes, hasql.NewNode(host.Addr, db))
 	}
 
@@ -60,7 +66,11 @@ func ExampleNewCluster() {
 	}
 
 	// Create cluster handler
-	c, _ := hasql.NewCluster(nodes, checkers.PostgreSQL, opts...)
+	c, err := hasql.NewCluster(nodes, checkers.PostgreSQL, opts...)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = c.Close() }() // close cluster when it is not needed
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

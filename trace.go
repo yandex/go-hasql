@@ -17,7 +17,7 @@
 package hasql
 
 // Tracer is a set of hooks to run at various stages of background nodes status update.
-// Any particular hook may be nil. Functions may be called concurrently from different goroutines..
+// Any particular hook may be nil. Functions may be called concurrently from different goroutines.
 type Tracer struct {
 	// UpdateNodes is called when before updating nodes status.
 	UpdateNodes func()
