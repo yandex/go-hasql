@@ -32,6 +32,10 @@ import (
 )
 
 func TestNewCluster(t *testing.T) {
+	fakeDB, _, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	require.NoError(t, err)
+	require.NotNil(t, fakeDB)
+
 	inputs := []struct {
 		Name    string
 		Fixture *fixture
@@ -43,8 +47,13 @@ func TestNewCluster(t *testing.T) {
 			Err:     true,
 		},
 		{
-			Name:    "invalid node",
-			Fixture: &fixture{Nodes: []*mockedNode{{Node: NewNode("", nil)}}},
+			Name:    "invalid node (no address)",
+			Fixture: &fixture{Nodes: []*mockedNode{{Node: NewNode("", fakeDB)}}},
+			Err:     true,
+		},
+		{
+			Name:    "invalid node (no db)",
+			Fixture: &fixture{Nodes: []*mockedNode{{Node: NewNode("fake.addr", nil)}}},
 			Err:     true,
 		},
 		{
