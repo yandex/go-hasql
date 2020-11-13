@@ -119,7 +119,7 @@ func (cl *Cluster) Close() error {
 	return err
 }
 
-// Nodes returns list of all
+// Nodes returns list of all nodes
 func (cl *Cluster) Nodes() []Node {
 	return cl.nodes
 }

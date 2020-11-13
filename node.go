@@ -85,5 +85,6 @@ const (
 // if node is primary or not.
 type NodeChecker func(ctx context.Context, db *sql.DB) (bool, error)
 
-// NodePicker is a signature for functions that determine how to pick single node from set of nodes
-type NodePicker func([]Node) Node
+// NodePicker is a signature for functions that determine how to pick single node from set of nodes.
+// Nodes passed to the picker function are sorted according to latency (from lowest to greatest).
+type NodePicker func(nodes []Node) Node

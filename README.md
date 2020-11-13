@@ -87,6 +87,20 @@ node, err := c.WaitForPrimary(ctx)
 if err == nil { ... }
 ```
 
+## Node pickers
+When user asks `Cluster` object for a node a random one from a list of suitable nodes is returned. User can override this behavior by providing a custom node picker.
+
+Library provides a couple of predefined pickers. For example if user wants 'closest' node (with lowest latency) `PickNodeClosest` picker should be used.
+
+```go
+cl, err := hasql.NewCluster(
+    []hasql.Node{hasql.NewNode("foo", dbFoo), hasql.NewNode("bar", dbBar) },
+    checkers.PostgreSQL,
+    hasql.WithNodePicker(hasql.PickNodeClosest())
+)
+if err != nil { ... }
+```
+
 ## Supported databases
 Since library works over standard `database/sql` it supports any database that has a `database/sql` driver. All it requires is a database-specific checker function that can tell if node is primary or standby.
 
