@@ -44,4 +44,5 @@ var (
 
 	PickNodeRandom     = hasql.PickNodeRandom
 	PickNodeRoundRobin = hasql.PickNodeRoundRobin
+	PickNodeClosest    = hasql.PickNodeClosest
 )
