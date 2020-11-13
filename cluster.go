@@ -318,51 +318,14 @@ func (cl *Cluster) updateNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
 	defer cancel()
 
-	live := AliveNodes{
-		Alive:     make([]Node, 0, len(cl.nodes)),
-		Primaries: make([]Node, 0, len(cl.nodes)),
-		Standbys:  make([]Node, 0, len(cl.nodes)),
-	}
-
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	wg.Add(len(cl.nodes))
-	for _, node := range cl.nodes {
-		go func(node Node, wg *sync.WaitGroup) {
-			defer wg.Done()
-
-			primary, err := checkNode(ctx, node, cl.checker)
-			if err != nil {
-				if cl.tracer.NodeDead != nil {
-					cl.tracer.NodeDead(node, err)
-				}
-
-				return
-			}
-
-			if cl.tracer.NodeAlive != nil {
-				cl.tracer.NodeAlive(node)
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-			live.Alive = append(live.Alive, node)
-			if primary {
-				live.Primaries = append(live.Primaries, node)
-			} else {
-				live.Standbys = append(live.Standbys, node)
-			}
-		}(node, &wg)
-	}
-	wg.Wait()
-
-	cl.aliveNodes.Store(live)
+	alive := checkNodes(ctx, cl.nodes, cl.checker, cl.tracer)
+	cl.aliveNodes.Store(alive)
 
 	if cl.tracer.UpdatedNodes != nil {
-		cl.tracer.UpdatedNodes(live)
+		cl.tracer.UpdatedNodes(alive)
 	}
 
-	cl.notifyWaiters(live)
+	cl.notifyWaiters(alive)
 
 	if cl.tracer.NotifiedWaiters != nil {
 		cl.tracer.NotifiedWaiters()

@@ -36,3 +36,10 @@ func PickNodeRoundRobin() NodePicker {
 		return nodes[(int(n)-1)%len(nodes)]
 	}
 }
+
+// PickNodeClosest returns node with least latency
+func PickNodeClosest() NodePicker {
+	return func(nodes []Node) Node {
+		return nodes[0]
+	}
+}
