@@ -58,6 +58,8 @@ type groupedCheckedNodes struct {
 	Standbys  checkedNodesList
 }
 
+// Alive returns merged primaries and standbys sorted by latency. Primaries and standbys are expected to be
+// sorted beforehand.
 func (nodes groupedCheckedNodes) Alive() []Node {
 	res := make([]Node, len(nodes.Primaries)+len(nodes.Standbys))
 

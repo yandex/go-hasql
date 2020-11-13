@@ -19,7 +19,9 @@ package hasql
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -28,6 +30,56 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCheckedNodesList_Len(t *testing.T) {
+	nodes := checkedNodesList{checkedNode{}, checkedNode{}, checkedNode{}}
+	require.Equal(t, 3, nodes.Len())
+}
+
+func TestCheckedNodesList_Less(t *testing.T) {
+	nodes := checkedNodesList{checkedNode{Latency: time.Nanosecond}, checkedNode{Latency: 2 * time.Nanosecond}}
+	require.True(t, nodes.Less(0, 1))
+	require.False(t, nodes.Less(1, 0))
+}
+
+func TestCheckedNodesList_Swap(t *testing.T) {
+	nodes := checkedNodesList{checkedNode{Latency: time.Nanosecond}, checkedNode{Latency: 2 * time.Nanosecond}}
+	nodes.Swap(0, 1)
+	assert.Equal(t, 2*time.Nanosecond, nodes[0].Latency)
+	assert.Equal(t, time.Nanosecond, nodes[1].Latency)
+}
+
+func TestCheckedNodesList_Sort(t *testing.T) {
+	nodes := checkedNodesList{checkedNode{Latency: 2 * time.Nanosecond}, checkedNode{Latency: 3 * time.Nanosecond}, checkedNode{Latency: time.Nanosecond}}
+	sort.Sort(nodes)
+	for i := range nodes {
+		assert.Equal(t, time.Duration(i+1)*time.Nanosecond, nodes[i].Latency)
+	}
+}
+
+func TestGroupedCheckedNodes_Alive(t *testing.T) {
+	// TODO: this test does not cover all the cases but better than nothing
+	const count = 10
+	var expected []Node
+	var input groupedCheckedNodes
+	for i := 0; i < count; i++ {
+		node := checkedNode{Node: NewNode(fmt.Sprintf("%d", i), nil), Latency: time.Duration(i+1) * time.Nanosecond}
+		expected = append(expected, node.Node)
+		if i%2 == 0 {
+			input.Primaries = append(input.Primaries, node)
+		} else {
+			input.Standbys = append(input.Standbys, node)
+		}
+	}
+	require.Len(t, expected, count)
+	require.NotEmpty(t, input.Primaries)
+	require.NotEmpty(t, input.Standbys)
+	require.Equal(t, count, len(input.Primaries)+len(input.Standbys))
+
+	alive := input.Alive()
+	require.Len(t, alive, count)
+	require.Equal(t, expected, alive)
+}
 
 func TestCheckNodes(t *testing.T) {
 	const count = 100
