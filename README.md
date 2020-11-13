@@ -96,7 +96,7 @@ Library provides a couple of predefined pickers. For example if user wants 'clos
 cl, err := hasql.NewCluster(
     []hasql.Node{hasql.NewNode("foo", dbFoo), hasql.NewNode("bar", dbBar) },
     checkers.PostgreSQL,
-    hasql.WithNodePicker(hasql.PickNodeClosest())
+    hasql.WithNodePicker(hasql.PickNodeClosest()),
 )
 if err != nil { ... }
 ```
