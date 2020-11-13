@@ -17,6 +17,7 @@
 package hasql
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -69,13 +70,17 @@ func TestWithNodePicker(t *testing.T) {
 }
 
 func TestWithTracer(t *testing.T) {
-	var called bool
-	tracer := Tracer{NotifiedWaiters: func() { called = true }}
+	var called int32
+	tracer := Tracer{
+		NotifiedWaiters: func() {
+			atomic.StoreInt32(&called, 1)
+		},
+	}
 	f := newFixture(t, 1)
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithTracer(tracer))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, c.Close()) }()
 
 	c.tracer.NotifiedWaiters()
-	require.True(t, called)
+	require.Equal(t, int32(1), atomic.LoadInt32(&called))
 }
