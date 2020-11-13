@@ -57,16 +57,6 @@ func (n *sqlNode) String() string {
 	return n.addr
 }
 
-// checkNode checks if the node is alive and whether it is primary or not
-func checkNode(ctx context.Context, node Node, checker NodeChecker) (bool, error) {
-	primary, err := checker(ctx, node.DB())
-	if err != nil {
-		return false, err
-	}
-
-	return primary, nil
-}
-
 // NodeStateCriteria for choosing a node
 type NodeStateCriteria int
 

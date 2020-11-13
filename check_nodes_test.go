@@ -18,7 +18,6 @@ package hasql
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"math/rand"
 	"testing"
@@ -31,7 +30,7 @@ import (
 )
 
 func TestCheckNodes(t *testing.T) {
-	const count = 10
+	const count = 100
 	var nodes []Node
 	expected := AliveNodes{Alive: make([]Node, count)}
 	for i := 0; i < count; i++ {
@@ -56,8 +55,8 @@ func TestCheckNodes(t *testing.T) {
 	require.Len(t, expected.Alive, count)
 
 	// Fill primaries and standbys
-	for _, node := range expected.Alive {
-		if rand.Intn(2) == 0 {
+	for i, node := range expected.Alive {
+		if i%2 == 0 {
 			expected.Primaries = append(expected.Primaries, node)
 		} else {
 			expected.Standbys = append(expected.Standbys, node)
@@ -68,30 +67,33 @@ func TestCheckNodes(t *testing.T) {
 	require.NotEmpty(t, expected.Standbys)
 	require.Equal(t, count, len(expected.Primaries)+len(expected.Standbys))
 
-	checker := func(_ context.Context, db *sql.DB) (bool, error) {
-		for i, node := range expected.Alive {
-			if node.DB() == db {
-				// TODO: make test time-independent
-				time.Sleep(100 * time.Duration(i) * time.Millisecond)
+	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+		// Alive nodes set the expected 'order' (latency) of all available nodes.
+		// Return duration based on that order.
+		var duration time.Duration
+		for i, alive := range expected.Alive {
+			if alive == node {
+				duration = time.Duration(i) * time.Nanosecond
+				break
 			}
 		}
 
-		for _, node := range expected.Primaries {
-			if node.DB() == db {
-				return true, nil
+		for _, primary := range expected.Primaries {
+			if primary == node {
+				return true, duration, nil
 			}
 		}
 
-		for _, node := range expected.Standbys {
-			if node.DB() == db {
-				return false, nil
+		for _, standby := range expected.Standbys {
+			if standby == node {
+				return false, duration, nil
 			}
 		}
 
-		return false, errors.New("node not found")
+		return false, 0, errors.New("node not found")
 	}
 
-	alive := checkNodes(context.Background(), nodes, checker, Tracer{})
+	alive := checkNodes(context.Background(), nodes, executor, Tracer{})
 	assert.Equal(t, expected.Primaries, alive.Primaries)
 	assert.Equal(t, expected.Standbys, alive.Standbys)
 	assert.Equal(t, expected.Alive, alive.Alive)

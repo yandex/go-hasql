@@ -87,7 +87,11 @@ func (nodes groupedCheckedNodes) Alive() []Node {
 	return res
 }
 
-func checkNodes(ctx context.Context, nodes []Node, checker NodeChecker, tracer Tracer) AliveNodes {
+type checkExecutorFunc func(ctx context.Context, node Node) (bool, time.Duration, error)
+
+// checkNodes takes slice of nodes, checks them in parallel and returns the alive ones.
+// Accepts customizable executor which enables time-independent tests for node sorting based on 'latency'.
+func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, tracer Tracer) AliveNodes {
 	checkedNodes := groupedCheckedNodes{
 		Primaries: make(checkedNodesList, 0, len(nodes)),
 		Standbys:  make(checkedNodesList, 0, len(nodes)),
@@ -100,9 +104,7 @@ func checkNodes(ctx context.Context, nodes []Node, checker NodeChecker, tracer T
 		go func(node Node, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			ts := time.Now()
-			primary, err := checkNode(ctx, node, checker)
-			d := time.Since(ts)
+			primary, duration, err := executor(ctx, node)
 			if err != nil {
 				if tracer.NodeDead != nil {
 					tracer.NodeDead(node, err)
@@ -115,7 +117,7 @@ func checkNodes(ctx context.Context, nodes []Node, checker NodeChecker, tracer T
 				tracer.NodeAlive(node)
 			}
 
-			nl := checkedNode{Node: node, Latency: d}
+			nl := checkedNode{Node: node, Latency: duration}
 
 			mu.Lock()
 			defer mu.Unlock()
@@ -135,5 +137,19 @@ func checkNodes(ctx context.Context, nodes []Node, checker NodeChecker, tracer T
 		Alive:     checkedNodes.Alive(),
 		Primaries: checkedNodes.Primaries.Nodes(),
 		Standbys:  checkedNodes.Standbys.Nodes(),
+	}
+}
+
+// checkExecutor returns checkExecutorFunc which can execute supplied check.
+func checkExecutor(checker NodeChecker) checkExecutorFunc {
+	return func(ctx context.Context, node Node) (bool, time.Duration, error) {
+		ts := time.Now()
+		primary, err := checker(ctx, node.DB())
+		d := time.Since(ts)
+		if err != nil {
+			return false, d, err
+		}
+
+		return primary, d, nil
 	}
 }

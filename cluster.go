@@ -318,7 +318,7 @@ func (cl *Cluster) updateNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
 	defer cancel()
 
-	alive := checkNodes(ctx, cl.nodes, cl.checker, cl.tracer)
+	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer)
 	cl.aliveNodes.Store(alive)
 
 	if cl.tracer.UpdatedNodes != nil {
