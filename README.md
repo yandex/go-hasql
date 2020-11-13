@@ -87,7 +87,7 @@ node, err := c.WaitForPrimary(ctx)
 if err == nil { ... }
 ```
 
-## Node pickers
+### Node pickers
 When user asks `Cluster` object for a node a random one from a list of suitable nodes is returned. User can override this behavior by providing a custom node picker.
 
 Library provides a couple of predefined pickers. For example if user wants 'closest' node (with lowest latency) `PickNodeClosest` picker should be used.
