@@ -65,3 +65,14 @@ func TestPickNodeRoundRobin(t *testing.T) {
 	}
 	assert.Equal(t, expectedNodes, pickedNodes)
 }
+
+func TestClosest(t *testing.T) {
+	nodes := []Node{
+		NewNode("shimba", nil),
+		NewNode("boomba", nil),
+		NewNode("looken", nil),
+	}
+
+	rr := PickNodeClosest()
+	assert.Equal(t, nodes[0], rr(nodes))
+}
