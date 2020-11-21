@@ -28,19 +28,29 @@ import (
 )
 
 func TestNewCluster(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
-	require.NoError(t, err)
-	require.NotNil(t, db)
+	checker := func(_ context.Context, _ *sql.DB) (bool, error) { return false, nil }
 
-	mock.ExpectClose()
-	defer func() { assert.NoError(t, mock.ExpectationsWereMet()) }()
+	t.Run("Works", func(t *testing.T) {
+		db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+		require.NoError(t, err)
+		require.NotNil(t, db)
 
-	node := NewNode("fake.addr", sqlx.NewDb(db, "sqlmock"))
-	cl, err := NewCluster([]Node{node}, func(_ context.Context, _ *sql.DB) (bool, error) { return false, nil })
-	require.NoError(t, err)
-	require.NotNil(t, cl)
-	defer func() { require.NoError(t, cl.Close()) }()
+		mock.ExpectClose()
+		defer func() { assert.NoError(t, mock.ExpectationsWereMet()) }()
 
-	require.Len(t, cl.Nodes(), 1)
-	require.Equal(t, node, cl.Nodes()[0])
+		node := NewNode("fake.addr", sqlx.NewDb(db, "sqlmock"))
+		cl, err := NewCluster([]Node{node}, checker)
+		require.NoError(t, err)
+		require.NotNil(t, cl)
+		defer func() { require.NoError(t, cl.Close()) }()
+
+		require.Len(t, cl.Nodes(), 1)
+		require.Equal(t, node, cl.Nodes()[0])
+	})
+
+	t.Run("Fails", func(t *testing.T) {
+		cl, err := NewCluster(nil, checker)
+		require.Error(t, err)
+		require.Nil(t, cl)
+	})
 }
