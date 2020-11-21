@@ -18,31 +18,51 @@ package hasql
 
 import "golang.yandex/hasql"
 
-//nolint:golint
-// Forwarded types
 type (
-	ClusterOption     = hasql.ClusterOption
+	// ClusterOption is a functional option type for Cluster constructor
+	ClusterOption = hasql.ClusterOption
+	// NodeStateCriteria for choosing a node
 	NodeStateCriteria = hasql.NodeStateCriteria
-	NodeChecker       = hasql.NodeChecker
-	NodePicker        = hasql.NodePicker
-	AliveNodes        = hasql.AliveNodes
-	Tracer            = hasql.Tracer
+	// NodeChecker is a signature for functions that check if specific node is alive and is primary.
+	// Returns true for primary and false if not. If error is returned, node is considered dead.
+	// Check function can be used to perform a query returning single boolean value that signals
+	// if node is primary or not.
+	NodeChecker = hasql.NodeChecker
+	// NodePicker is a signature for functions that determine how to pick single node from set of nodes.
+	// Nodes passed to the picker function are sorted according to latency (from lowest to greatest).
+	NodePicker = hasql.NodePicker
+	// AliveNodes of Cluster
+	AliveNodes = hasql.AliveNodes
+	// Tracer is a set of hooks to run at various stages of background nodes status update.
+	// Any particular hook may be nil. Functions may be called concurrently from different goroutines.
+	Tracer = hasql.Tracer
 )
 
-// Forwarded variables and functions
 var (
-	Alive         = hasql.Alive
-	Primary       = hasql.Primary
-	Standby       = hasql.Standby
+	// Alive for choosing any alive node
+	Alive = hasql.Alive
+	// Primary for choosing primary node
+	Primary = hasql.Primary
+	// Standby for choosing standby node
+	Standby = hasql.Standby
+	// PreferPrimary for choosing primary or any alive node
 	PreferPrimary = hasql.PreferPrimary
+	// PreferStandby for choosing standby or any alive node
 	PreferStandby = hasql.PreferStandby
 
+	// WithUpdateInterval sets interval between cluster node updates
 	WithUpdateInterval = hasql.WithUpdateInterval
-	WithUpdateTimeout  = hasql.WithUpdateTimeout
-	WithNodePicker     = hasql.WithNodePicker
-	WithTracer         = hasql.WithTracer
+	// WithUpdateTimeout sets ping timeout for update of each node in cluster
+	WithUpdateTimeout = hasql.WithUpdateTimeout
+	// WithNodePicker sets algorithm for node selection (e.g. random, round robin etc)
+	WithNodePicker = hasql.WithNodePicker
+	// WithTracer sets tracer for actions happening in the background
+	WithTracer = hasql.WithTracer
 
-	PickNodeRandom     = hasql.PickNodeRandom
+	// PickNodeRandom returns random node from nodes set
+	PickNodeRandom = hasql.PickNodeRandom
+	// PickNodeRoundRobin returns next node based on Round Robin algorithm
 	PickNodeRoundRobin = hasql.PickNodeRoundRobin
-	PickNodeClosest    = hasql.PickNodeClosest
+	// PickNodeClosest returns node with least latency
+	PickNodeClosest = hasql.PickNodeClosest
 )

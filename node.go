@@ -60,12 +60,16 @@ func (n *sqlNode) String() string {
 // NodeStateCriteria for choosing a node
 type NodeStateCriteria int
 
-// Known node state criteria
 const (
+	// Alive for choosing any alive node
 	Alive NodeStateCriteria = iota + 1
+	// Primary for choosing primary node
 	Primary
+	// Standby for choosing standby node
 	Standby
+	// PreferPrimary for choosing primary or any alive node
 	PreferPrimary
+	// PreferStandby for choosing standby or any alive node
 	PreferStandby
 )
 
