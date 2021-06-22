@@ -34,6 +34,8 @@ func Check(ctx context.Context, db *sql.DB, query string) (bool, error) {
 	return primary, nil
 }
 
+// ReplicationLag executes specified query on specified database pool. Query must return single time.Duration
+// value that represents its replication lag. All errors are returned as is.
 func ReplicationLag(ctx context.Context, db *sql.DB, query string) (time.Duration, error) {
 	row := db.QueryRowContext(ctx, query)
 	var lag time.Duration
