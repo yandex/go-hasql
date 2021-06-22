@@ -19,6 +19,7 @@ package checkers
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // Check executes specified query on specified database pool. Query must return single boolean
@@ -31,4 +32,14 @@ func Check(ctx context.Context, db *sql.DB, query string) (bool, error) {
 	}
 
 	return primary, nil
+}
+
+func ReplicationLag(ctx context.Context, db *sql.DB, query string) (time.Duration, error) {
+	row := db.QueryRowContext(ctx, query)
+	var lag time.Duration
+	if err := row.Scan(&lag); err != nil {
+		return 0, err
+	}
+
+	return lag, nil
 }

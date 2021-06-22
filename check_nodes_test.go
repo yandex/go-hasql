@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"sort"
 	"testing"
@@ -119,34 +120,105 @@ func TestCheckNodes(t *testing.T) {
 	require.NotEmpty(t, expected.Standbys)
 	require.Equal(t, count, len(expected.Primaries)+len(expected.Standbys))
 
-	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+	executor := func(ctx context.Context, target *checkedNode) error {
 		// Alive nodes set the expected 'order' (latency) of all available nodes.
 		// Return duration based on that order.
-		var duration time.Duration
 		for i, alive := range expected.Alive {
-			if alive == node {
-				duration = time.Duration(i) * time.Nanosecond
+			if alive == target.Node {
+				target.Latency = time.Duration(i) * time.Nanosecond
 				break
 			}
 		}
 
 		for _, primary := range expected.Primaries {
-			if primary == node {
-				return true, duration, nil
+			if primary == target.Node {
+				target.Primary = true
+				return nil
 			}
 		}
 
 		for _, standby := range expected.Standbys {
-			if standby == node {
-				return false, duration, nil
+			if standby == target.Node {
+				target.Primary = false
+				return nil
 			}
 		}
 
-		return false, 0, errors.New("node not found")
+		return errors.New("node not found")
 	}
 
-	alive := checkNodes(context.Background(), nodes, executor, Tracer{})
+	alive := checkNodes(context.Background(), nodes, Tracer{}, executor)
 	assert.Equal(t, expected.Primaries, alive.Primaries)
 	assert.Equal(t, expected.Standbys, alive.Standbys)
 	assert.Equal(t, expected.Alive, alive.Alive)
+}
+
+func TestCheckNodes_ReplicationLag(t *testing.T) {
+	// prepare test nodes
+	aliveNode := func() Node {
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+		require.NotNil(t, db)
+
+		rows := sqlmock.
+			NewRows([]string{"replication_lag"}).
+			AddRow(1 * time.Millisecond)
+
+		mock.
+			ExpectQuery("SELECT replication_lag").
+			WillReturnRows(rows)
+
+		return NewNode(uuid.Must(uuid.NewV4()).String(), db)
+	}()
+
+	faultyNode := func() Node {
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+		require.NotNil(t, db)
+
+		mock.
+			ExpectQuery("SELECT replication_lag").
+			WillReturnError(io.ErrUnexpectedEOF)
+
+		return NewNode(uuid.Must(uuid.NewV4()).String(), db)
+	}()
+
+	slowNode := func() Node {
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+		require.NotNil(t, db)
+
+		rows := sqlmock.
+			NewRows([]string{"replication_lag"}).
+			AddRow(1 * time.Second)
+
+		mock.
+			ExpectQuery("SELECT replication_lag").
+			WillReturnRows(rows)
+
+		return NewNode(uuid.Must(uuid.NewV4()).String(), db)
+	}()
+
+	nodes := []Node{aliveNode, faultyNode, slowNode}
+	expectedNodes := []Node{aliveNode}
+
+	executor := func(ctx context.Context, target *checkedNode) error {
+		var lag time.Duration
+		err := target.Node.DB().
+			QueryRowContext(ctx, "SELECT replication_lag").
+			Scan(&lag)
+
+		if err != nil {
+			return err
+		}
+
+		if lag > 100*time.Millisecond {
+			return errors.New("node too slow")
+		}
+
+		return nil
+	}
+
+	alive := checkNodes(context.Background(), nodes, Tracer{}, executor)
+	assert.Equal(t, expectedNodes, alive.Alive)
 }

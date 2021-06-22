@@ -42,6 +42,20 @@ func WithNodePicker(picker NodePicker) ClusterOption {
 	}
 }
 
+// WithReplicationLagChecker sets function to check node replication lag.
+func WithReplicationLagChecker(checker ReplicationLagChecker) ClusterOption {
+	return func(cl *Cluster) {
+		cl.lagChecker = checker
+	}
+}
+
+// WithMaxReplicationLag sets maximum replication lag for replica nodes.
+func WithMaxReplicationLag(d time.Duration) ClusterOption {
+	return func(cl *Cluster) {
+		cl.maxLagValue = d
+	}
+}
+
 // WithTracer sets tracer for actions happening in the background
 func WithTracer(tracer Tracer) ClusterOption {
 	return func(cl *Cluster) {

@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // Node of single cluster
@@ -82,3 +83,7 @@ type NodeChecker func(ctx context.Context, db *sql.DB) (bool, error)
 // NodePicker is a signature for functions that determine how to pick single node from set of nodes.
 // Nodes passed to the picker function are sorted according to latency (from lowest to greatest).
 type NodePicker func(nodes []Node) Node
+
+// ReplicationLagChecker is a signature for functions that returns current value of replication lag between
+// primary and replica nodes. If error is returned, replication considered broken.
+type ReplicationLagChecker func(ctx context.Context, db *sql.DB) (time.Duration, error)

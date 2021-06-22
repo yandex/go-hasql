@@ -17,6 +17,8 @@
 package hasql
 
 import (
+	"context"
+	"database/sql"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -52,6 +54,21 @@ func TestWithUpdateTimeout(t *testing.T) {
 	defer func() { require.NoError(t, c.Close()) }()
 
 	require.Equal(t, d, c.updateTimeout)
+}
+
+func TestWithReplicationLagChecker(t *testing.T) {
+	var called bool
+	checker := func(_ context.Context, _ *sql.DB) (time.Duration, error) {
+		called = true
+		return 0, nil
+	}
+	f := newFixture(t, 1)
+	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithReplicationLagChecker(checker))
+	require.NoError(t, err)
+	defer func() { require.NoError(t, c.Close()) }()
+
+	_, _ = c.lagChecker(context.Background(), nil)
+	require.True(t, called)
 }
 
 func TestWithNodePicker(t *testing.T) {
