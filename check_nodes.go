@@ -18,13 +18,16 @@ package hasql
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
 )
 
 type checkedNode struct {
-	Node    Node
+	Node Node
+
+	Primary bool
 	Latency time.Duration
 }
 
@@ -89,11 +92,11 @@ func (nodes groupedCheckedNodes) Alive() []Node {
 	return res
 }
 
-type checkExecutorFunc func(ctx context.Context, node Node) (bool, time.Duration, error)
+type checkExecutorFunc func(ctx context.Context, node *checkedNode) error
 
 // checkNodes takes slice of nodes, checks them in parallel and returns the alive ones.
 // Accepts customizable executor which enables time-independent tests for node sorting based on 'latency'.
-func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, tracer Tracer) AliveNodes {
+func checkNodes(ctx context.Context, nodes []Node, tracer Tracer, executors ...checkExecutorFunc) AliveNodes {
 	checkedNodes := groupedCheckedNodes{
 		Primaries: make(checkedNodesList, 0, len(nodes)),
 		Standbys:  make(checkedNodesList, 0, len(nodes)),
@@ -106,24 +109,26 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 		go func(node Node, wg *sync.WaitGroup) {
 			defer wg.Done()
 
-			primary, duration, err := executor(ctx, node)
-			if err != nil {
-				if tracer.NodeDead != nil {
-					tracer.NodeDead(node, err)
-				}
+			nl := checkedNode{Node: node}
 
-				return
+			for _, executor := range executors {
+				err := executor(ctx, &nl)
+				if err != nil {
+					if tracer.NodeDead != nil {
+						tracer.NodeDead(node, err)
+					}
+
+					return
+				}
 			}
 
 			if tracer.NodeAlive != nil {
 				tracer.NodeAlive(node)
 			}
 
-			nl := checkedNode{Node: node, Latency: duration}
-
 			mu.Lock()
 			defer mu.Unlock()
-			if primary {
+			if nl.Primary {
 				checkedNodes.Primaries = append(checkedNodes.Primaries, nl)
 			} else {
 				checkedNodes.Standbys = append(checkedNodes.Standbys, nl)
@@ -142,16 +147,37 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 	}
 }
 
-// checkExecutor returns checkExecutorFunc which can execute supplied check.
-func checkExecutor(checker NodeChecker) checkExecutorFunc {
-	return func(ctx context.Context, node Node) (bool, time.Duration, error) {
+// checkRoleExecutor returns checkExecutorFunc which can execute role check.
+func checkRoleExecutor(checker NodeChecker) checkExecutorFunc {
+	return func(ctx context.Context, target *checkedNode) error {
 		ts := time.Now()
-		primary, err := checker(ctx, node.DB())
+		primary, err := checker(ctx, target.Node.DB())
 		d := time.Since(ts)
 		if err != nil {
-			return false, d, err
+			return fmt.Errorf("unable to check node role: %w", err)
 		}
 
-		return primary, d, nil
+		target.Primary = primary
+		target.Latency = d
+
+		return nil
+	}
+}
+
+// checkReplicationLagExecutor returns checkExecutorFunc which can execute replication lag check.
+func checkReplicationLagExecutor(checker ReplicationLagChecker, maxLag time.Duration) checkExecutorFunc {
+	return func(ctx context.Context, target *checkedNode) error {
+		if checker == nil || maxLag == 0 || target.Primary {
+			return nil
+		}
+
+		lag, err := checker(ctx, target.Node.DB())
+		if err != nil {
+			return fmt.Errorf("cannot check node replication lag: %w", err)
+		}
+		if lag < maxLag {
+			return fmt.Errorf("replication lag is too big: %s", lag)
+		}
+		return nil
 	}
 }

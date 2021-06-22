@@ -53,6 +53,9 @@ type Cluster struct {
 	updateTimeout  time.Duration
 	checker        NodeChecker
 	picker         NodePicker
+	// Replication lag configuration
+	lagChecker  ReplicationLagChecker
+	maxLagValue time.Duration
 
 	// Status
 	updateStopper chan struct{}
@@ -318,7 +321,12 @@ func (cl *Cluster) updateNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
 	defer cancel()
 
-	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer)
+	checkExecutors := []checkExecutorFunc{
+		checkRoleExecutor(cl.checker),
+		checkReplicationLagExecutor(cl.lagChecker, cl.maxLagValue),
+	}
+
+	alive := checkNodes(ctx, cl.nodes, cl.tracer, checkExecutors...)
 	cl.aliveNodes.Store(alive)
 
 	if cl.tracer.UpdatedNodes != nil {
