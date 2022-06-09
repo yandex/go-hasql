@@ -29,6 +29,8 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"golang.yandex/hasql/checkers"
 )
 
 func TestNewCluster(t *testing.T) {
@@ -539,6 +541,90 @@ func TestCluster_WaitForStandbyPreferred(t *testing.T) {
 			defer func() { require.NoError(t, cl.Close()) }()
 
 			input.Test(t, input.Fixture, &o, cl)
+		})
+	}
+}
+
+// TestCluster_BrokenAtStartup checks if broken at startup cluster behaves properly
+func TestCluster_BrokenAtStartup(t *testing.T) {
+	checkerQuery := "SELECT NOT pg_is_in_recovery()"
+	isPrimaryRow := sqlmock.NewRows([]string{`NOT pg_is_in_recovery()`}).AddRow(true)
+	isStandbyRow := sqlmock.NewRows([]string{`NOT pg_is_in_recovery()`}).AddRow(false)
+
+	testCases := []struct {
+		name  string
+		nodes []Node
+	}{
+		{
+			name: "broken_primary",
+			nodes: func() []Node {
+				db1, mock1, _ := sqlmock.New() // primary
+				db2, mock2, _ := sqlmock.New() // standby
+				db3, mock3, _ := sqlmock.New() // standby
+
+				mock1.ExpectQuery(checkerQuery).WillDelayFor(20 * time.Millisecond)
+				mock2.ExpectQuery(checkerQuery).WillReturnRows(isStandbyRow)
+				mock3.ExpectQuery(checkerQuery).WillReturnRows(isStandbyRow)
+
+				return []Node{
+					NewNode("primary", db1),
+					NewNode("standby1", db2),
+					NewNode("standby2", db3),
+				}
+			}(),
+		},
+		{
+			name: "broken_standby",
+			nodes: func() []Node {
+				db1, mock1, _ := sqlmock.New() // primary
+				db2, mock2, _ := sqlmock.New() // standby
+				db3, mock3, _ := sqlmock.New() // standby
+
+				mock1.ExpectQuery(checkerQuery).WillReturnRows(isPrimaryRow)
+				mock2.ExpectQuery(checkerQuery).WillDelayFor(20 * time.Millisecond)
+				mock3.ExpectQuery(checkerQuery).WillReturnRows(isStandbyRow)
+
+				return []Node{
+					NewNode("primary", db1),
+					NewNode("standby1", db2),
+					NewNode("standby2", db3),
+				}
+			}(),
+		},
+		{
+			name: "broken_standbys",
+			nodes: func() []Node {
+				db1, mock1, _ := sqlmock.New() // primary
+				db2, mock2, _ := sqlmock.New() // standby
+				db3, mock3, _ := sqlmock.New() // standby
+
+				mock1.ExpectQuery(checkerQuery).WillReturnRows(isPrimaryRow)
+				mock2.ExpectQuery(checkerQuery).WillDelayFor(20 * time.Millisecond)
+				mock3.ExpectQuery(checkerQuery).WillDelayFor(20 * time.Millisecond)
+
+				return []Node{
+					NewNode("primary", db1),
+					NewNode("standby1", db2),
+					NewNode("standby2", db3),
+				}
+			}(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cluster, err := NewCluster(tc.nodes, checkers.PostgreSQL)
+			require.NoError(t, err, "unexpected error on cluster bootstrap")
+
+			defer cluster.Close()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+			defer cancel()
+
+			node, err := cluster.WaitForAlive(ctx)
+			assert.NoError(t, err)
+			assert.NotNil(t, node)
+			assert.NotEmpty(t, cluster.aliveNodes.Load().(AliveNodes).Alive)
 		})
 	}
 }
