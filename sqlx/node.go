@@ -71,7 +71,7 @@ func uncheckedSQLxNode(node hasql.Node) Node {
 		return nil
 	}
 
-	return node.(*sqlxNode)
+	return node.(Node)
 }
 
 func checkedSQLxNode(node hasql.Node, err error) (Node, error) {
