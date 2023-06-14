@@ -108,15 +108,14 @@ func NewCluster(nodes []Node, checker NodeChecker, opts ...ClusterOption) (*Clus
 func (cl *Cluster) Close() error {
 	close(cl.updateStopper)
 
-	var err error
+	var errs error
 	for _, node := range cl.nodes {
-		if e := node.DB().Close(); e != nil {
-			// TODO: This is bad, we save only one error. Need multiple-error error package.
-			err = e
+		if err := node.DB().Close(); err != nil {
+			errs = errors.Join(errs, err)
 		}
 	}
 
-	return err
+	return errs
 }
 
 // Nodes returns list of all nodes

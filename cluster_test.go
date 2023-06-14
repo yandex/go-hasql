@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -75,7 +76,6 @@ func TestNewCluster(t *testing.T) {
 
 			require.NoError(t, err)
 			require.NotNil(t, cl)
-			defer func() { require.NoError(t, cl.Close()) }()
 
 			require.Len(t, cl.Nodes(), len(input.Fixture.Nodes))
 		})
@@ -237,7 +237,6 @@ func TestCluster_WaitForAlive(t *testing.T) {
 
 				var o nodeUpdateObserver
 				cl := setupCluster(t, input.Fixture, o.Tracer())
-				defer func() { require.NoError(t, cl.Close()) }()
 
 				input.Test(t, input.Fixture, &o, cl, status)
 			})
@@ -308,7 +307,6 @@ func TestCluster_WaitForPrimary(t *testing.T) {
 
 			var o nodeUpdateObserver
 			cl := setupCluster(t, input.Fixture, o.Tracer())
-			defer func() { require.NoError(t, cl.Close()) }()
 
 			input.Test(t, input.Fixture, &o, cl)
 		})
@@ -387,7 +385,6 @@ func TestCluster_WaitForStandby(t *testing.T) {
 
 			var o nodeUpdateObserver
 			cl := setupCluster(t, input.Fixture, o.Tracer())
-			defer func() { require.NoError(t, cl.Close()) }()
 
 			input.Test(t, input.Fixture, &o, cl)
 		})
@@ -457,7 +454,6 @@ func TestCluster_WaitForPrimaryPreferred(t *testing.T) {
 
 			var o nodeUpdateObserver
 			cl := setupCluster(t, input.Fixture, o.Tracer())
-			defer func() { require.NoError(t, cl.Close()) }()
 
 			input.Test(t, input.Fixture, &o, cl)
 		})
@@ -536,11 +532,51 @@ func TestCluster_WaitForStandbyPreferred(t *testing.T) {
 
 			var o nodeUpdateObserver
 			cl := setupCluster(t, input.Fixture, o.Tracer())
-			defer func() { require.NoError(t, cl.Close()) }()
 
 			input.Test(t, input.Fixture, &o, cl)
 		})
 	}
+}
+
+func TestCluster_Close(t *testing.T) {
+	t.Run("no_errors", func(t *testing.T) {
+		f := newFixture(t, 1)
+		f.Nodes[0].setStatus(nodeStatusPrimary)
+		f.Nodes[0].Mock.ExpectClose()
+
+		c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker)
+		require.NoError(t, err)
+
+		assert.NoError(t, c.Close())
+	})
+	t.Run("single_error", func(t *testing.T) {
+		f := newFixture(t, 2)
+		f.Nodes[0].setStatus(nodeStatusPrimary)
+		f.Nodes[0].Mock.ExpectClose()
+
+		f.Nodes[1].setStatus(nodeStatusStandby)
+		f.Nodes[1].Mock.ExpectClose().WillReturnError(io.EOF)
+
+		c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker)
+		require.NoError(t, err)
+
+		assert.ErrorIs(t, c.Close(), io.EOF)
+	})
+	t.Run("multiple_errors", func(t *testing.T) {
+		f := newFixture(t, 2)
+		f.Nodes[0].setStatus(nodeStatusPrimary)
+		f.Nodes[0].Mock.ExpectClose().WillReturnError(io.ErrClosedPipe)
+
+		f.Nodes[1].setStatus(nodeStatusStandby)
+		f.Nodes[1].Mock.ExpectClose().WillReturnError(io.EOF)
+
+		c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker)
+		require.NoError(t, err)
+
+		err = c.Close()
+		assert.ErrorIs(t, err, io.ErrClosedPipe)
+		assert.ErrorIs(t, err, io.EOF)
+	})
 }
 
 type nodeStatus int64
@@ -602,13 +638,15 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T, count int) *fixture {
+	t.Helper()
+
 	var f fixture
 	for i := count; i > 0; i-- {
 		db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
-		mock.ExpectClose()
+		//mock.ExpectClose()
 
 		node := &mockedNode{
 			Node: NewNode(uuid.Must(uuid.NewV4()).String(), db),
@@ -652,6 +690,8 @@ func (f *fixture) PrimaryChecker(_ context.Context, db *sql.DB) (bool, error) {
 }
 
 func (f *fixture) AssertExpectations(t *testing.T) {
+	t.Helper()
+
 	for _, node := range f.Nodes {
 		if node.Mock != nil { // We can use 'incomplete' fixture to test invalid cases
 			assert.NoError(t, node.Mock.ExpectationsWereMet())
