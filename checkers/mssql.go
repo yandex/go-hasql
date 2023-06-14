@@ -21,7 +21,7 @@ import (
 	"database/sql"
 )
 
-// MSSQL checks whether MySQL server is primary or not.
+// MSSQL checks whether MSSQL server is primary or not.
 func MSSQL(ctx context.Context, db *sql.DB) (bool, error) {
 	var status bool
 
