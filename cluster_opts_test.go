@@ -28,7 +28,6 @@ func TestClusterDefaults(t *testing.T) {
 	f := newFixture(t, 1)
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker)
 	require.NoError(t, err)
-	defer func() { require.NoError(t, c.Close()) }()
 
 	require.Equal(t, DefaultUpdateInterval, c.updateInterval)
 	require.Equal(t, DefaultUpdateTimeout, c.updateTimeout)
@@ -39,7 +38,6 @@ func TestWithUpdateInterval(t *testing.T) {
 	d := time.Hour
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithUpdateInterval(d))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, c.Close()) }()
 
 	require.Equal(t, d, c.updateInterval)
 }
@@ -49,7 +47,6 @@ func TestWithUpdateTimeout(t *testing.T) {
 	d := time.Hour
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithUpdateTimeout(d))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, c.Close()) }()
 
 	require.Equal(t, d, c.updateTimeout)
 }
@@ -63,7 +60,6 @@ func TestWithNodePicker(t *testing.T) {
 	f := newFixture(t, 1)
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithNodePicker(picker))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, c.Close()) }()
 
 	c.picker(nil)
 	require.True(t, called)
@@ -79,7 +75,6 @@ func TestWithTracer(t *testing.T) {
 	f := newFixture(t, 1)
 	c, err := NewCluster(f.ClusterNodes(), f.PrimaryChecker, WithTracer(tracer))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, c.Close()) }()
 
 	c.tracer.NotifiedWaiters()
 	require.Equal(t, int32(1), atomic.LoadInt32(&called))
