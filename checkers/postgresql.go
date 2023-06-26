@@ -19,9 +19,15 @@ package checkers
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // PostgreSQL checks whether PostgreSQL server is primary or not.
 func PostgreSQL(ctx context.Context, db *sql.DB) (bool, error) {
 	return Check(ctx, db, "SELECT NOT pg_is_in_recovery()")
+}
+
+// PostgreSQLReplicationLag returns replication lag value for PostgreSQL replica node.
+func PostgreSQLReplicationLag(ctx context.Context, db *sql.DB) (time.Duration, error) {
+	return ReplicationLag(ctx, db, "SELECT NOW() - pg_last_xact_replay_timestamp()")
 }
