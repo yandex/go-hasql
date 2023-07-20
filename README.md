@@ -46,7 +46,9 @@ cl, err := hasql.NewCluster(
 if err != nil { ... }
 
 node := cl.Primary()
-if node == nil { ... }
+if node == nil {
+    err := cl.Err() // most recent errors for all nodes in the cluster
+}
 
 // Do anything you like
 fmt.Println("Node address", node.Addr)

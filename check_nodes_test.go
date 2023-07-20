@@ -145,8 +145,35 @@ func TestCheckNodes(t *testing.T) {
 		return false, 0, errors.New("node not found")
 	}
 
-	alive := checkNodes(context.Background(), nodes, executor, Tracer{})
+	errCollector := newErrorsCollector()
+	alive := checkNodes(context.Background(), nodes, executor, Tracer{}, errCollector)
+
+	assert.NoError(t, errCollector.Err())
 	assert.Equal(t, expected.Primaries, alive.Primaries)
 	assert.Equal(t, expected.Standbys, alive.Standbys)
 	assert.Equal(t, expected.Alive, alive.Alive)
+}
+
+func TestCheckNodesWithErrors(t *testing.T) {
+	const count = 5
+	var nodes []Node
+	for i := 0; i < count; i++ {
+		db, _, err := sqlmock.New()
+		require.NoError(t, err)
+		require.NotNil(t, db)
+		nodes = append(nodes, NewNode(uuid.Must(uuid.NewV4()).String(), db))
+	}
+
+	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+		return false, 0, errors.New("node not found")
+	}
+
+	errCollector := newErrorsCollector()
+	checkNodes(context.Background(), nodes, executor, Tracer{}, errCollector)
+
+	err := errCollector.Err()
+	for i := 0; i < count; i++ {
+		assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", nodes[i].Addr()))
+	}
+	assert.ErrorContains(t, err, "node not found")
 }

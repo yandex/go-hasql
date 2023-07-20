@@ -543,6 +543,76 @@ func TestCluster_WaitForStandbyPreferred(t *testing.T) {
 	}
 }
 
+func TestCluster_Err(t *testing.T) {
+	inputs := []struct {
+		Name    string
+		Fixture *fixture
+		Test    func(t *testing.T, f *fixture, o *nodeUpdateObserver, cl *Cluster)
+	}{
+		{
+			Name:    "AllAlive",
+			Fixture: newFixture(t, 2),
+			Test: func(t *testing.T, f *fixture, o *nodeUpdateObserver, cl *Cluster) {
+				f.Nodes[0].setStatus(nodeStatusStandby)
+				f.Nodes[1].setStatus(nodeStatusPrimary)
+				waitForNode(t, o, cl.WaitForPrimary, f.Nodes[1].Node)
+
+				require.NoError(t, cl.Err())
+			},
+		},
+		{
+			Name:    "AllDead",
+			Fixture: newFixture(t, 2),
+			Test: func(t *testing.T, f *fixture, o *nodeUpdateObserver, cl *Cluster) {
+				waitForNode(t, o, cl.WaitForPrimary, nil)
+
+				err := cl.Err()
+				require.Error(t, err)
+				assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", f.Nodes[0].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", f.Nodes[1].Node.Addr()))
+			},
+		},
+		{
+			Name:    "PrimaryAliveOtherDead",
+			Fixture: newFixture(t, 2),
+			Test: func(t *testing.T, f *fixture, o *nodeUpdateObserver, cl *Cluster) {
+				f.Nodes[1].setStatus(nodeStatusPrimary)
+				waitForNode(t, o, cl.WaitForPrimary, f.Nodes[1].Node)
+
+				err := cl.Err()
+				require.Error(t, err)
+				assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", f.Nodes[0].Node.Addr()))
+				assert.NotContains(t, err.Error(), fmt.Sprintf("error on node %s", f.Nodes[1].Node.Addr()))
+			},
+		},
+		{
+			Name:    "PrimaryDeadOtherAlive",
+			Fixture: newFixture(t, 2),
+			Test: func(t *testing.T, f *fixture, o *nodeUpdateObserver, cl *Cluster) {
+				f.Nodes[0].setStatus(nodeStatusStandby)
+				waitForNode(t, o, cl.WaitForPrimary, nil)
+
+				err := cl.Err()
+				require.Error(t, err)
+				assert.NotContains(t, err.Error(), fmt.Sprintf("error on node %s", f.Nodes[0].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", f.Nodes[1].Node.Addr()))
+			},
+		},
+	}
+
+	for _, input := range inputs {
+		t.Run(input.Name, func(t *testing.T) {
+			defer input.Fixture.AssertExpectations(t)
+
+			var o nodeUpdateObserver
+			cl := setupCluster(t, input.Fixture, o.Tracer())
+			defer func() { require.NoError(t, cl.Close()) }()
+
+			input.Test(t, input.Fixture, &o, cl)
+		})
+	}
+}
+
 type nodeStatus int64
 
 const (
