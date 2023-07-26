@@ -47,11 +47,28 @@ func TestErrorsCollector(t *testing.T) {
 			)
 		}(i)
 	}
+
+	errCollectDone := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-errCollectDone:
+				return
+			default:
+				// there are no assertions here, because that logic expected to run with -race,
+				// otherwise it doesn't test anything, just eat CPU.
+				_ = errCollector.Err()
+			}
+		}
+	}()
+
 	wg.Wait()
+	close(errCollectDone)
 
 	err := errCollector.Err()
 	for i := 1; i <= nodesCount; i++ {
-		assert.ErrorContains(t, err, fmt.Sprintf("error on node node-%d", i))
+		assert.ErrorContains(t, err, fmt.Sprintf("'node-%d' node error occurred at", i))
 	}
 	assert.ErrorContains(t, err, connErr.Error())
+
 }

@@ -58,7 +58,7 @@ type Cluster struct {
 	updateStopper chan struct{}
 	aliveNodes    atomic.Value
 	nodes         []Node
-	errCollector  *errorsCollector
+	errCollector  errorsCollector
 
 	// Notification
 	muWaiters sync.Mutex
@@ -293,6 +293,8 @@ func (cl *Cluster) node(nodes AliveNodes, criteria NodeStateCriteria) Node {
 	}
 }
 
+// Err returns the combined error including most recent errors for all nodes.
+// This error is CollectedErrors or nil.
 func (cl *Cluster) Err() error {
 	return cl.errCollector.Err()
 }
@@ -324,7 +326,7 @@ func (cl *Cluster) updateNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
 	defer cancel()
 
-	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer, cl.errCollector)
+	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer, &cl.errCollector)
 	cl.aliveNodes.Store(alive)
 
 	if cl.tracer.UpdatedNodes != nil {

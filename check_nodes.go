@@ -116,6 +116,9 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 				}
 				return
 			}
+			if errCollector != nil {
+				errCollector.Remove(node.Addr())
+			}
 
 			if tracer.NodeAlive != nil {
 				tracer.NodeAlive(node)

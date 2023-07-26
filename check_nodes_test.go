@@ -146,7 +146,7 @@ func TestCheckNodes(t *testing.T) {
 	}
 
 	errCollector := newErrorsCollector()
-	alive := checkNodes(context.Background(), nodes, executor, Tracer{}, errCollector)
+	alive := checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)
 
 	assert.NoError(t, errCollector.Err())
 	assert.Equal(t, expected.Primaries, alive.Primaries)
@@ -169,11 +169,36 @@ func TestCheckNodesWithErrors(t *testing.T) {
 	}
 
 	errCollector := newErrorsCollector()
-	checkNodes(context.Background(), nodes, executor, Tracer{}, errCollector)
+	checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)
 
 	err := errCollector.Err()
 	for i := 0; i < count; i++ {
-		assert.ErrorContains(t, err, fmt.Sprintf("error on node %s", nodes[i].Addr()))
+		assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", nodes[i].Addr()))
 	}
 	assert.ErrorContains(t, err, "node not found")
+}
+
+func TestCheckNodesWithErrorsWhenNodesBecameAlive(t *testing.T) {
+	const count = 5
+	var nodes []Node
+	for i := 0; i < count; i++ {
+		db, _, err := sqlmock.New()
+		require.NoError(t, err)
+		require.NotNil(t, db)
+		nodes = append(nodes, NewNode(uuid.Must(uuid.NewV4()).String(), db))
+	}
+
+	executor := func(ctx context.Context, node Node) (bool, time.Duration, error) {
+		return false, 0, errors.New("node not found")
+	}
+
+	errCollector := newErrorsCollector()
+	checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)
+	require.Error(t, errCollector.Err())
+
+	executor = func(ctx context.Context, node Node) (bool, time.Duration, error) {
+		return true, 1, nil
+	}
+	checkNodes(context.Background(), nodes, executor, Tracer{}, &errCollector)
+	require.NoError(t, errCollector.Err())
 }

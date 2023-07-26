@@ -19,52 +19,87 @@ package hasql
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
 
-type nodeError struct {
-	addr       string
-	err        error
-	occurredAt time.Time
+// CollectedErrors are errors collected when checking node statuses
+type CollectedErrors struct {
+	Errors []NodeError
+}
+
+func (e *CollectedErrors) Error() string {
+	if len(e.Errors) == 1 {
+		return e.Errors[0].Error()
+	}
+
+	errs := make([]string, len(e.Errors))
+	for i, ne := range e.Errors {
+		errs[i] = ne.Error()
+	}
+	/*
+		I don't believe there exist 'best join separator' that fit all cases (cli output, JSON, .. etc),
+		so we use newline as error.Join did it.
+		In difficult cases (as suggested in https://github.com/yandex/go-hasql/pull/14),
+		the user should be able to receive "raw" errors and format them as it suits him.
+	*/
+	return strings.Join(errs, "\n")
+}
+
+// NodeError is error that background goroutine got while check given node
+type NodeError struct {
+	Addr       string
+	Err        error
+	OccurredAt time.Time
+}
+
+func (e *NodeError) Error() string {
+	// 'foo.db' node error occurred at '2009-11-10..': FATAL: terminating connection due to ...
+	return fmt.Sprintf("'%s' node error occurred at '%s': %s", e.Addr, e.OccurredAt, e.Err)
 }
 
 type errorsCollector struct {
-	store map[string]nodeError
+	store map[string]NodeError
 	mu    sync.Mutex
 }
 
-func newErrorsCollector() *errorsCollector {
-	return &errorsCollector{store: make(map[string]nodeError)}
+func newErrorsCollector() errorsCollector {
+	return errorsCollector{store: make(map[string]NodeError)}
 }
 
 func (e *errorsCollector) Add(addr string, err error, occurredAt time.Time) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.store[addr] = nodeError{
-		addr:       addr,
-		err:        err,
-		occurredAt: occurredAt,
+	e.store[addr] = NodeError{
+		Addr:       addr,
+		Err:        err,
+		OccurredAt: occurredAt,
 	}
 }
 
-func (e *errorsCollector) Err() (errs error) {
-	errList := make([]nodeError, 0, len(e.store))
+func (e *errorsCollector) Remove(addr string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	delete(e.store, addr)
+}
+
+func (e *errorsCollector) Err() error {
+	e.mu.Lock()
+	errList := make([]NodeError, 0, len(e.store))
 	for _, nErr := range e.store {
 		errList = append(errList, nErr)
 	}
-	sort.Slice(errList, func(i, j int) bool {
-		return errList[i].occurredAt.Before(errList[j].occurredAt)
-	})
-	for _, nErr := range errList {
-		err := fmt.Errorf("error on node %s occurred at %v: %w", nErr.addr, nErr.occurredAt, nErr.err)
-		// use errs = errors.Join(errs, err) when support go<1.20 will be dropped + change to desc errList soring above
-		if errs == nil {
-			errs = err
-		} else {
-			errs = fmt.Errorf("%w; %w", err, errs)
-		}
+	e.mu.Unlock()
+
+	if len(errList) == 0 {
+		return nil
 	}
-	return
+
+	sort.Slice(errList, func(i, j int) bool {
+		return errList[i].OccurredAt.Before(errList[j].OccurredAt)
+	})
+	return &CollectedErrors{Errors: errList}
 }
