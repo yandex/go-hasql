@@ -568,8 +568,8 @@ func TestCluster_Err(t *testing.T) {
 
 				err := cl.Err()
 				require.Error(t, err)
-				assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", f.Nodes[0].Node.Addr()))
-				assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", f.Nodes[1].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("%q node error occurred at", f.Nodes[0].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("%q node error occurred at", f.Nodes[1].Node.Addr()))
 			},
 		},
 		{
@@ -581,8 +581,8 @@ func TestCluster_Err(t *testing.T) {
 
 				err := cl.Err()
 				require.Error(t, err)
-				assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", f.Nodes[0].Node.Addr()))
-				assert.NotContains(t, err.Error(), fmt.Sprintf("'%s' node error occurred at", f.Nodes[1].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("%q node error occurred at", f.Nodes[0].Node.Addr()))
+				assert.NotContains(t, err.Error(), fmt.Sprintf("%q node error occurred at", f.Nodes[1].Node.Addr()))
 			},
 		},
 		{
@@ -594,8 +594,8 @@ func TestCluster_Err(t *testing.T) {
 
 				err := cl.Err()
 				require.Error(t, err)
-				assert.NotContains(t, err.Error(), fmt.Sprintf("'%s' node error occurred at", f.Nodes[0].Node.Addr()))
-				assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", f.Nodes[1].Node.Addr()))
+				assert.NotContains(t, err.Error(), fmt.Sprintf("%q node error occurred at", f.Nodes[0].Node.Addr()))
+				assert.ErrorContains(t, err, fmt.Sprintf("%q node error occurred at", f.Nodes[1].Node.Addr()))
 			},
 		},
 	}

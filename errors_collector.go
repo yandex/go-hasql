@@ -56,7 +56,7 @@ type NodeError struct {
 
 func (e *NodeError) Error() string {
 	// 'foo.db' node error occurred at '2009-11-10..': FATAL: terminating connection due to ...
-	return fmt.Sprintf("'%s' node error occurred at '%s': %s", e.Addr, e.OccurredAt, e.Err)
+	return fmt.Sprintf("%q node error occurred at %q: %s", e.Addr, e.OccurredAt, e.Err)
 }
 
 type errorsCollector struct {

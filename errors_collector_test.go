@@ -67,7 +67,7 @@ func TestErrorsCollector(t *testing.T) {
 
 	err := errCollector.Err()
 	for i := 1; i <= nodesCount; i++ {
-		assert.ErrorContains(t, err, fmt.Sprintf("'node-%d' node error occurred at", i))
+		assert.ErrorContains(t, err, fmt.Sprintf("\"node-%d\" node error occurred at", i))
 	}
 	assert.ErrorContains(t, err, connErr.Error())
 

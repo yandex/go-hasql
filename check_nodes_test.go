@@ -173,7 +173,7 @@ func TestCheckNodesWithErrors(t *testing.T) {
 
 	err := errCollector.Err()
 	for i := 0; i < count; i++ {
-		assert.ErrorContains(t, err, fmt.Sprintf("'%s' node error occurred at", nodes[i].Addr()))
+		assert.ErrorContains(t, err, fmt.Sprintf("%q node error occurred at", nodes[i].Addr()))
 	}
 	assert.ErrorContains(t, err, "node not found")
 }
