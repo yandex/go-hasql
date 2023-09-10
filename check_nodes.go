@@ -93,7 +93,7 @@ type checkExecutorFunc func(ctx context.Context, node Node) (bool, time.Duration
 
 // checkNodes takes slice of nodes, checks them in parallel and returns the alive ones.
 // Accepts customizable executor which enables time-independent tests for node sorting based on 'latency'.
-func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, tracer Tracer) AliveNodes {
+func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, tracer Tracer, errCollector *errorsCollector) AliveNodes {
 	checkedNodes := groupedCheckedNodes{
 		Primaries: make(checkedNodesList, 0, len(nodes)),
 		Standbys:  make(checkedNodesList, 0, len(nodes)),
@@ -111,8 +111,13 @@ func checkNodes(ctx context.Context, nodes []Node, executor checkExecutorFunc, t
 				if tracer.NodeDead != nil {
 					tracer.NodeDead(node, err)
 				}
-
+				if errCollector != nil {
+					errCollector.Add(node.Addr(), err, time.Now())
+				}
 				return
+			}
+			if errCollector != nil {
+				errCollector.Remove(node.Addr())
 			}
 
 			if tracer.NodeAlive != nil {

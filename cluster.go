@@ -58,6 +58,7 @@ type Cluster struct {
 	updateStopper chan struct{}
 	aliveNodes    atomic.Value
 	nodes         []Node
+	errCollector  errorsCollector
 
 	// Notification
 	muWaiters sync.Mutex
@@ -89,6 +90,7 @@ func NewCluster(nodes []Node, checker NodeChecker, opts ...ClusterOption) (*Clus
 		checker:        checker,
 		picker:         PickNodeRandom(),
 		nodes:          nodes,
+		errCollector:   newErrorsCollector(),
 	}
 
 	// Apply options
@@ -291,6 +293,12 @@ func (cl *Cluster) node(nodes AliveNodes, criteria NodeStateCriteria) Node {
 	}
 }
 
+// Err returns the combined error including most recent errors for all nodes.
+// This error is CollectedErrors or nil.
+func (cl *Cluster) Err() error {
+	return cl.errCollector.Err()
+}
+
 // backgroundNodesUpdate periodically updates list of live db nodes
 func (cl *Cluster) backgroundNodesUpdate() {
 	// Initial update
@@ -318,7 +326,7 @@ func (cl *Cluster) updateNodes() {
 	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
 	defer cancel()
 
-	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer)
+	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer, &cl.errCollector)
 	cl.aliveNodes.Store(alive)
 
 	if cl.tracer.UpdatedNodes != nil {
