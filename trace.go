@@ -16,17 +16,56 @@
 
 package hasql
 
-// Tracer is a set of hooks to run at various stages of background nodes status update.
-// Any particular hook may be nil. Functions may be called concurrently from different goroutines.
-type Tracer struct {
+// Tracer is a set of hooks to be called at various stages of background nodes status update
+type Tracer[T Querier] interface {
 	// UpdateNodes is called when before updating nodes status.
-	UpdateNodes func()
+	UpdateNodes()
 	// UpdatedNodes is called after all nodes are updated. The nodes is a list of currently alive nodes.
-	UpdatedNodes func(nodes AliveNodes)
+	UpdatedNodes(nodes CheckedNodes[T])
 	// NodeDead is called when it is determined that specified node is dead.
-	NodeDead func(node Node, err error)
+	NodeDead(NodeCheckError[T])
 	// NodeAlive is called when it is determined that specified node is alive.
-	NodeAlive func(node Node)
+	NodeAlive(node CheckedNode[T])
 	// NotifiedWaiters is called when all callers of 'WaitFor*' functions have been notified.
-	NotifiedWaiters func()
+	NotifiedWaiters()
+}
+
+// Base tracer is a customizable embedable tracer implementation.
+// By default it is a no-op tracer
+type BaseTracer[T Querier] struct {
+	UpdateNodesFn     func()
+	UpdatedNodesFn    func(CheckedNodes[T])
+	NodeDeadFn        func(NodeCheckError[T])
+	NodeAliveFn       func(CheckedNode[T])
+	NotifiedWaitersFn func()
+}
+
+func (n BaseTracer[T]) UpdateNodes() {
+	if n.UpdateNodesFn != nil {
+		n.UpdateNodesFn()
+	}
+}
+
+func (n BaseTracer[T]) UpdatedNodes(nodes CheckedNodes[T]) {
+	if n.UpdatedNodesFn != nil {
+		n.UpdatedNodesFn(nodes)
+	}
+}
+
+func (n BaseTracer[T]) NodeDead(err NodeCheckError[T]) {
+	if n.NodeDeadFn != nil {
+		n.NodeDeadFn(err)
+	}
+}
+
+func (n BaseTracer[T]) NodeAlive(node CheckedNode[T]) {
+	if n.NodeAliveFn != nil {
+		n.NodeAliveFn(node)
+	}
+}
+
+func (n BaseTracer[T]) NotifiedWaiters() {
+	if n.NotifiedWaitersFn != nil {
+		n.NotifiedWaitersFn()
+	}
 }

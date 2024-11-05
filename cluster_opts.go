@@ -18,33 +18,33 @@ package hasql
 
 import "time"
 
-// ClusterOption is a functional option type for Cluster constructor
-type ClusterOption func(*Cluster)
+// ClusterOpt is a functional option type for Cluster constructor
+type ClusterOpt[T Querier] func(*Cluster[T])
 
-// WithUpdateInterval sets interval between cluster node updates
-func WithUpdateInterval(d time.Duration) ClusterOption {
-	return func(cl *Cluster) {
+// WithUpdateInterval sets interval between cluster state updates
+func WithUpdateInterval[T Querier](d time.Duration) ClusterOpt[T] {
+	return func(cl *Cluster[T]) {
 		cl.updateInterval = d
 	}
 }
 
-// WithUpdateTimeout sets ping timeout for update of each node in cluster
-func WithUpdateTimeout(d time.Duration) ClusterOption {
-	return func(cl *Cluster) {
+// WithUpdateTimeout sets timeout for update of each node in cluster
+func WithUpdateTimeout[T Querier](d time.Duration) ClusterOpt[T] {
+	return func(cl *Cluster[T]) {
 		cl.updateTimeout = d
 	}
 }
 
 // WithNodePicker sets algorithm for node selection (e.g. random, round robin etc)
-func WithNodePicker(picker NodePicker) ClusterOption {
-	return func(cl *Cluster) {
+func WithNodePicker[T Querier](picker NodePicker[T]) ClusterOpt[T] {
+	return func(cl *Cluster[T]) {
 		cl.picker = picker
 	}
 }
 
 // WithTracer sets tracer for actions happening in the background
-func WithTracer(tracer Tracer) ClusterOption {
-	return func(cl *Cluster) {
+func WithTracer[T Querier](tracer Tracer[T]) ClusterOpt[T] {
+	return func(cl *Cluster[T]) {
 		cl.tracer = tracer
 	}
 }

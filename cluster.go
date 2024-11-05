@@ -20,160 +20,125 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-// Default values for cluster config
-const (
-	DefaultUpdateInterval = time.Second * 5
-	DefaultUpdateTimeout  = time.Second
-)
-
-type nodeWaiter struct {
-	Ch            chan Node
-	StateCriteria NodeStateCriteria
-}
-
-// AliveNodes of Cluster
-type AliveNodes struct {
-	Alive     []Node
-	Primaries []Node
-	Standbys  []Node
-}
-
 // Cluster consists of number of 'nodes' of a single SQL database.
-// Background goroutine periodically checks nodes and updates their status.
-type Cluster struct {
-	tracer Tracer
-
-	// Configuration
+type Cluster[T Querier] struct {
+	// configuration
 	updateInterval time.Duration
 	updateTimeout  time.Duration
 	checker        NodeChecker
-	picker         NodePicker
+	picker         NodePicker[T]
+	tracer         Tracer[T]
 
-	// Status
-	updateStopper chan struct{}
-	aliveNodes    atomic.Value
-	nodes         []Node
-	errCollector  errorsCollector
+	// status
+	registeredNodes []*Node[T]
+	checkedNodes    atomic.Value
+	stop            context.CancelFunc
 
-	// Notification
-	muWaiters sync.Mutex
-	waiters   []nodeWaiter
+	// broadcast
+	subscribersMu sync.Mutex
+	subscribers   []updateSubscriber[T]
 }
 
-// NewCluster constructs cluster object representing a single 'cluster' of SQL database.
-// Close function must be called when cluster is not needed anymore.
-func NewCluster(nodes []Node, checker NodeChecker, opts ...ClusterOption) (*Cluster, error) {
-	// Validate nodes
+// NewCluster returns object representing a single 'cluster' of SQL databases
+func NewCluster[T Querier](nodes []*Node[T], checker NodeChecker, opts ...ClusterOpt[T]) (*Cluster[T], error) {
+	// validate nodes
 	if len(nodes) == 0 {
 		return nil, errors.New("no nodes provided")
 	}
 
+	var zero T
 	for i, node := range nodes {
-		if node.Addr() == "" {
-			return nil, fmt.Errorf("node %d has no address", i)
+		nodeName := node.String()
+		if nodeName == "" {
+			return nil, fmt.Errorf("node %d has no name", i)
 		}
-
-		if node.DB() == nil {
-			return nil, fmt.Errorf("node %d (%q) has nil *sql.DB", i, node.Addr())
+		if any(node.DB()) == any(zero) {
+			return nil, fmt.Errorf("node %d (%s) has inoperable SQL client", i, nodeName)
 		}
 	}
 
-	cl := &Cluster{
-		updateStopper:  make(chan struct{}),
-		updateInterval: DefaultUpdateInterval,
-		updateTimeout:  DefaultUpdateTimeout,
+	// prepare internal 'stop' context
+	ctx, stopFn := context.WithCancel(context.Background())
+
+	cl := &Cluster[T]{
+		updateInterval: 5 * time.Second,
+		updateTimeout:  time.Second,
 		checker:        checker,
-		picker:         PickNodeRandom(),
-		nodes:          nodes,
-		errCollector:   newErrorsCollector(),
+		picker:         new(RandomNodePicker[T]),
+		tracer:         BaseTracer[T]{},
+
+		stop:            stopFn,
+		registeredNodes: nodes,
 	}
 
-	// Apply options
+	// apply options
 	for _, opt := range opts {
 		opt(cl)
 	}
 
 	// Store initial nodes state
-	cl.aliveNodes.Store(AliveNodes{})
+	cl.checkedNodes.Store(CheckedNodes[T]{})
 
 	// Start update routine
-	go cl.backgroundNodesUpdate()
+	go cl.backgroundNodesUpdate(ctx)
 	return cl, nil
 }
 
-// Close databases and stop node updates.
-func (cl *Cluster) Close() error {
-	close(cl.updateStopper)
+// Close stops node updates.
+// Close function must be called when cluster is not needed anymore.
+// It returns combined error if multiple nodes returned errors
+func (cl *Cluster[T]) Close() error {
+	cl.stop()
 
+	// close all nodes underlying connection pools
 	var err error
-	for _, node := range cl.nodes {
-		if e := node.DB().Close(); e != nil {
-			// TODO: This is bad, we save only one error. Need multiple-error error package.
-			err = e
+	for _, node := range cl.registeredNodes {
+		if closer, ok := any(node.DB()).(io.Closer); ok {
+			err = errors.Join(err, closer.Close())
 		}
 	}
+
+	// discard any collected state of nodes
+	cl.checkedNodes.Store(CheckedNodes[T]{})
 
 	return err
 }
 
-// Nodes returns list of all nodes
-func (cl *Cluster) Nodes() []Node {
-	return cl.nodes
+// Err returns cause of nodes most recent check failures.
+// In most cases error is a list of errors of type CheckNodeErrors, original errors
+// could be extracted using `errors.As`.
+// Example:
+//
+//	var cerrs NodeCheckErrors
+//	if errors.As(err, &cerrs) {
+//	    for _, cerr := range cerrs {
+//	        fmt.Printf("node: %s, err: %s\n", cerr.Node(), cerr.Err())
+//	    }
+//	}
+func (cl *Cluster[T]) Err() error {
+	return cl.checkedNodes.Load().(CheckedNodes[T]).Err()
 }
 
-func (cl *Cluster) nodesAlive() AliveNodes {
-	return cl.aliveNodes.Load().(AliveNodes)
-}
-
-func (cl *Cluster) addUpdateWaiter(criteria NodeStateCriteria) <-chan Node {
-	// Buffered channel is essential.
-	// Read WaitForNode function for more information.
-	ch := make(chan Node, 1)
-	cl.muWaiters.Lock()
-	defer cl.muWaiters.Unlock()
-	cl.waiters = append(cl.waiters, nodeWaiter{Ch: ch, StateCriteria: criteria})
-	return ch
-}
-
-// WaitForAlive node to appear or until context is canceled
-func (cl *Cluster) WaitForAlive(ctx context.Context) (Node, error) {
-	return cl.WaitForNode(ctx, Alive)
-}
-
-// WaitForPrimary node to appear or until context is canceled
-func (cl *Cluster) WaitForPrimary(ctx context.Context) (Node, error) {
-	return cl.WaitForNode(ctx, Primary)
-}
-
-// WaitForStandby node to appear or until context is canceled
-func (cl *Cluster) WaitForStandby(ctx context.Context) (Node, error) {
-	return cl.WaitForNode(ctx, Standby)
-}
-
-// WaitForPrimaryPreferred node to appear or until context is canceled
-func (cl *Cluster) WaitForPrimaryPreferred(ctx context.Context) (Node, error) {
-	return cl.WaitForNode(ctx, PreferPrimary)
-}
-
-// WaitForStandbyPreferred node to appear or until context is canceled
-func (cl *Cluster) WaitForStandbyPreferred(ctx context.Context) (Node, error) {
-	return cl.WaitForNode(ctx, PreferStandby)
+// Node returns cluster node with specified status
+func (cl *Cluster[T]) Node(criteria NodeStateCriteria) *Node[T] {
+	return pickNodeByCriteria(cl.checkedNodes.Load().(CheckedNodes[T]), cl.picker, criteria)
 }
 
 // WaitForNode with specified status to appear or until context is canceled
-func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (Node, error) {
+func (cl *Cluster[T]) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (*Node[T], error) {
 	// Node already exists?
 	node := cl.Node(criteria)
 	if node != nil {
 		return node, nil
 	}
 
-	ch := cl.addUpdateWaiter(criteria)
+	ch := cl.addUpdateSubscriber(criteria)
 
 	// Node might have appeared while we were adding waiter, recheck
 	node = cl.Node(criteria)
@@ -203,165 +168,65 @@ func (cl *Cluster) WaitForNode(ctx context.Context, criteria NodeStateCriteria) 
 	}
 }
 
-// Alive returns node that is considered alive
-func (cl *Cluster) Alive() Node {
-	return cl.alive(cl.nodesAlive())
-}
-
-func (cl *Cluster) alive(nodes AliveNodes) Node {
-	if len(nodes.Alive) == 0 {
-		return nil
-	}
-
-	return cl.picker(nodes.Alive)
-}
-
-// Primary returns first available node that is considered alive and is primary (able to execute write operations)
-func (cl *Cluster) Primary() Node {
-	return cl.primary(cl.nodesAlive())
-}
-
-func (cl *Cluster) primary(nodes AliveNodes) Node {
-	if len(nodes.Primaries) == 0 {
-		return nil
-	}
-
-	return cl.picker(nodes.Primaries)
-}
-
-// Standby returns node that is considered alive and is standby (unable to execute write operations)
-func (cl *Cluster) Standby() Node {
-	return cl.standby(cl.nodesAlive())
-}
-
-func (cl *Cluster) standby(nodes AliveNodes) Node {
-	if len(nodes.Standbys) == 0 {
-		return nil
-	}
-
-	// select one of standbys
-	return cl.picker(nodes.Standbys)
-}
-
-// PrimaryPreferred returns primary node if possible, standby otherwise
-func (cl *Cluster) PrimaryPreferred() Node {
-	return cl.primaryPreferred(cl.nodesAlive())
-}
-
-func (cl *Cluster) primaryPreferred(nodes AliveNodes) Node {
-	node := cl.primary(nodes)
-	if node == nil {
-		node = cl.standby(nodes)
-	}
-
-	return node
-}
-
-// StandbyPreferred returns standby node if possible, primary otherwise
-func (cl *Cluster) StandbyPreferred() Node {
-	return cl.standbyPreferred(cl.nodesAlive())
-}
-
-func (cl *Cluster) standbyPreferred(nodes AliveNodes) Node {
-	node := cl.standby(nodes)
-	if node == nil {
-		node = cl.primary(nodes)
-	}
-
-	return node
-}
-
-// Node returns cluster node with specified status.
-func (cl *Cluster) Node(criteria NodeStateCriteria) Node {
-	return cl.node(cl.nodesAlive(), criteria)
-}
-
-func (cl *Cluster) node(nodes AliveNodes, criteria NodeStateCriteria) Node {
-	switch criteria {
-	case Alive:
-		return cl.alive(nodes)
-	case Primary:
-		return cl.primary(nodes)
-	case Standby:
-		return cl.standby(nodes)
-	case PreferPrimary:
-		return cl.primaryPreferred(nodes)
-	case PreferStandby:
-		return cl.standbyPreferred(nodes)
-	default:
-		panic(fmt.Sprintf("unknown node state criteria: %d", criteria))
-	}
-}
-
-// Err returns the combined error including most recent errors for all nodes.
-// This error is CollectedErrors or nil.
-func (cl *Cluster) Err() error {
-	return cl.errCollector.Err()
-}
-
-// backgroundNodesUpdate periodically updates list of live db nodes
-func (cl *Cluster) backgroundNodesUpdate() {
-	// Initial update
-	cl.updateNodes()
+// backgroundNodesUpdate periodically checks list of registered nodes
+func (cl *Cluster[T]) backgroundNodesUpdate(ctx context.Context) {
+	// initial update
+	cl.updateNodes(ctx)
 
 	ticker := time.NewTicker(cl.updateInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-cl.updateStopper:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			cl.updateNodes()
+			cl.updateNodes(ctx)
 		}
 	}
 }
 
-// updateNodes pings all db nodes and stores alive ones in a separate slice
-func (cl *Cluster) updateNodes() {
-	if cl.tracer.UpdateNodes != nil {
-		cl.tracer.UpdateNodes()
-	}
+// updateNodes checks all nodes and notifies all subscribers
+func (cl *Cluster[T]) updateNodes(ctx context.Context) {
+	cl.tracer.UpdateNodes()
 
-	ctx, cancel := context.WithTimeout(context.Background(), cl.updateTimeout)
+	ctx, cancel := context.WithTimeout(ctx, cl.updateTimeout)
 	defer cancel()
 
-	alive := checkNodes(ctx, cl.nodes, checkExecutor(cl.checker), cl.tracer, &cl.errCollector)
-	cl.aliveNodes.Store(alive)
+	checked := checkNodes(ctx, cl.registeredNodes, cl.checker, cl.picker.CompareNodes, cl.tracer)
+	cl.checkedNodes.Store(checked)
 
-	if cl.tracer.UpdatedNodes != nil {
-		cl.tracer.UpdatedNodes(alive)
-	}
+	cl.tracer.UpdatedNodes(checked)
 
-	cl.notifyWaiters(alive)
+	cl.notifyUpdateSubscribers(checked)
 
-	if cl.tracer.NotifiedWaiters != nil {
-		cl.tracer.NotifiedWaiters()
-	}
+	cl.tracer.NotifiedWaiters()
 }
 
-func (cl *Cluster) notifyWaiters(nodes AliveNodes) {
-	cl.muWaiters.Lock()
-	defer cl.muWaiters.Unlock()
+// pickNodeByCriteria is a helper function to pick a single node by given criteria
+func pickNodeByCriteria[T Querier](nodes CheckedNodes[T], picker NodePicker[T], criteria NodeStateCriteria) *Node[T] {
+	var subset []CheckedNode[T]
 
-	if len(cl.waiters) == 0 {
-		return
-	}
-
-	var nodelessWaiters []nodeWaiter
-	// Notify all waiters
-	for _, waiter := range cl.waiters {
-		node := cl.node(nodes, waiter.StateCriteria)
-		if node == nil {
-			// Put waiter back
-			nodelessWaiters = append(nodelessWaiters, waiter)
-			continue
+	switch criteria {
+	case Alive:
+		subset = nodes.alive
+	case Primary:
+		subset = nodes.primaries
+	case Standby:
+		subset = nodes.standbys
+	case PreferPrimary:
+		if subset = nodes.primaries; len(subset) == 0 {
+			subset = nodes.standbys
 		}
-
-		// We won't block here, read addUpdateWaiter function for more information
-		waiter.Ch <- node
-		// No need to close channel since we write only once and forget it so does the 'client'
+	case PreferStandby:
+		if subset = nodes.standbys; len(subset) == 0 {
+			subset = nodes.primaries
+		}
 	}
 
-	cl.waiters = nodelessWaiters
+	if len(subset) == 0 {
+		return nil
+	}
+
+	return picker.PickNode(subset).Node
 }
