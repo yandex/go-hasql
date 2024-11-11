@@ -19,16 +19,23 @@ package hasql
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 )
 
-// CheckedNodes holds references to any cluster node which state has been checked
+// CheckedNodes holds references to all available cluster nodes
 type CheckedNodes[T Querier] struct {
-	alive     []CheckedNode[T]
-	primaries []CheckedNode[T]
-	standbys  []CheckedNode[T]
-	err       error
+	discovered []*Node[T]
+	alive      []CheckedNode[T]
+	primaries  []CheckedNode[T]
+	standbys   []CheckedNode[T]
+	err        error
+}
+
+// Discovered returns a list of nodes discovered in cluster
+func (c CheckedNodes[T]) Discovered() []*Node[T] {
+	return c.discovered
 }
 
 // Alive returns a list of all successfully checked nodes irregarding their cluster role
@@ -58,14 +65,22 @@ type CheckedNode[T Querier] struct {
 }
 
 // checkNodes takes slice of nodes, checks them in parallel and returns the alive ones
-func checkNodes[T Querier](ctx context.Context, nodes []*Node[T], checkFn NodeChecker, compareFn func(a, b CheckedNode[T]) int, tracer Tracer[T]) CheckedNodes[T] {
+func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], checkFn NodeChecker, compareFn func(a, b CheckedNode[T]) int, tracer Tracer[T]) CheckedNodes[T] {
+	discoveredNodes, err := discoverer.DiscoverNodes(ctx)
+	if err != nil {
+		// error discovering nodes
+		return CheckedNodes[T]{
+			err: fmt.Errorf("cannot discover cluster nodes: %w", err),
+		}
+	}
+
 	var mu sync.Mutex
-	checked := make([]CheckedNode[T], 0, len(nodes))
+	checked := make([]CheckedNode[T], 0, len(discoveredNodes))
 	var errs NodeCheckErrors[T]
 
 	var wg sync.WaitGroup
-	wg.Add(len(nodes))
-	for _, node := range nodes {
+	wg.Add(len(discoveredNodes))
+	for _, node := range discoveredNodes {
 		go func(node *Node[T]) {
 			defer wg.Done()
 
@@ -129,9 +144,10 @@ func checkNodes[T Querier](ctx context.Context, nodes []*Node[T], checkFn NodeCh
 	}
 
 	res := CheckedNodes[T]{
-		alive:     checked,
-		primaries: make([]CheckedNode[T], 0, 1),
-		standbys:  make([]CheckedNode[T], 0, len(checked)),
+		discovered: discoveredNodes,
+		alive:      checked,
+		primaries:  make([]CheckedNode[T], 0, 1),
+		standbys:   make([]CheckedNode[T], 0, len(checked)),
 		err: func() error {
 			if len(errs) != 0 {
 				return errs

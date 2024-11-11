@@ -19,7 +19,6 @@ package hasql
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -31,14 +30,14 @@ type Cluster[T Querier] struct {
 	// configuration
 	updateInterval time.Duration
 	updateTimeout  time.Duration
+	discoverer     NodeDiscoverer[T]
 	checker        NodeChecker
 	picker         NodePicker[T]
 	tracer         Tracer[T]
 
 	// status
-	registeredNodes []*Node[T]
-	checkedNodes    atomic.Value
-	stop            context.CancelFunc
+	checkedNodes atomic.Value
+	stop         context.CancelFunc
 
 	// broadcast
 	subscribersMu sync.Mutex
@@ -46,21 +45,9 @@ type Cluster[T Querier] struct {
 }
 
 // NewCluster returns object representing a single 'cluster' of SQL databases
-func NewCluster[T Querier](nodes []*Node[T], checker NodeChecker, opts ...ClusterOpt[T]) (*Cluster[T], error) {
-	// validate nodes
-	if len(nodes) == 0 {
-		return nil, errors.New("no nodes provided")
-	}
-
-	var zero T
-	for i, node := range nodes {
-		nodeName := node.String()
-		if nodeName == "" {
-			return nil, fmt.Errorf("node %d has no name", i)
-		}
-		if any(node.DB()) == any(zero) {
-			return nil, fmt.Errorf("node %d (%s) has inoperable SQL client", i, nodeName)
-		}
+func NewCluster[T Querier](discoverer NodeDiscoverer[T], checker NodeChecker, opts ...ClusterOpt[T]) (*Cluster[T], error) {
+	if discoverer == nil {
+		return nil, errors.New("node discoverer required")
 	}
 
 	// prepare internal 'stop' context
@@ -69,12 +56,12 @@ func NewCluster[T Querier](nodes []*Node[T], checker NodeChecker, opts ...Cluste
 	cl := &Cluster[T]{
 		updateInterval: 5 * time.Second,
 		updateTimeout:  time.Second,
+		discoverer:     discoverer,
 		checker:        checker,
 		picker:         new(RandomNodePicker[T]),
 		tracer:         BaseTracer[T]{},
 
-		stop:            stopFn,
-		registeredNodes: nodes,
+		stop: stopFn,
 	}
 
 	// apply options
@@ -93,12 +80,12 @@ func NewCluster[T Querier](nodes []*Node[T], checker NodeChecker, opts ...Cluste
 // Close stops node updates.
 // Close function must be called when cluster is not needed anymore.
 // It returns combined error if multiple nodes returned errors
-func (cl *Cluster[T]) Close() error {
+func (cl *Cluster[T]) Close() (err error) {
 	cl.stop()
 
 	// close all nodes underlying connection pools
-	var err error
-	for _, node := range cl.registeredNodes {
+	discovered := cl.checkedNodes.Load().(CheckedNodes[T]).discovered
+	for _, node := range discovered {
 		if closer, ok := any(node.DB()).(io.Closer); ok {
 			err = errors.Join(err, closer.Close())
 		}
@@ -193,7 +180,7 @@ func (cl *Cluster[T]) updateNodes(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, cl.updateTimeout)
 	defer cancel()
 
-	checked := checkNodes(ctx, cl.registeredNodes, cl.checker, cl.picker.CompareNodes, cl.tracer)
+	checked := checkNodes(ctx, cl.discoverer, cl.checker, cl.picker.CompareNodes, cl.tracer)
 	cl.checkedNodes.Store(checked)
 
 	cl.tracer.UpdatedNodes(checked)

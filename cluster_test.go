@@ -30,25 +30,7 @@ func TestNewCluster(t *testing.T) {
 	t.Run("no_nodes", func(t *testing.T) {
 		cl, err := NewCluster[*sql.DB](nil, PostgreSQLChecker)
 		assert.Nil(t, cl)
-		assert.EqualError(t, err, "no nodes provided")
-	})
-
-	t.Run("unnamed_node", func(t *testing.T) {
-		nodes := []*Node[*sql.DB]{
-			NewNode("", (*sql.DB)(nil)),
-		}
-		cl, err := NewCluster(nodes, PostgreSQLChecker)
-		assert.Nil(t, cl)
-		assert.EqualError(t, err, "node 0 has no name")
-	})
-
-	t.Run("no_conn_node", func(t *testing.T) {
-		nodes := []*Node[*sql.DB]{
-			NewNode("shimba", (*sql.DB)(nil)),
-		}
-		cl, err := NewCluster(nodes, PostgreSQLChecker)
-		assert.Nil(t, cl)
-		assert.EqualError(t, err, "node 0 (shimba) has inoperable SQL client")
+		assert.EqualError(t, err, "node discoverer required")
 	})
 
 	t.Run("success", func(t *testing.T) {
@@ -63,7 +45,7 @@ func TestNewCluster(t *testing.T) {
 			NewNode("shimba", db),
 		}
 
-		cl, err := NewCluster(nodes, PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
 		defer func() { require.NoError(t, cl.Close()) }()
 
 		assert.NoError(t, err)
@@ -90,8 +72,12 @@ func TestClusterClose(t *testing.T) {
 			NewNode("boomba", db2),
 		}
 
-		cl, err := NewCluster(nodes, PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
 		require.NoError(t, err)
+
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			discovered: nodes,
+		})
 
 		assert.NoError(t, cl.Close())
 	})
@@ -114,8 +100,12 @@ func TestClusterClose(t *testing.T) {
 			NewNode("boomba", db2),
 		}
 
-		cl, err := NewCluster(nodes, PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
 		require.NoError(t, err)
+
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			discovered: nodes,
+		})
 
 		err = cl.Close()
 		assert.ErrorIs(t, err, io.EOF)
