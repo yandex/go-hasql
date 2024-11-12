@@ -34,34 +34,26 @@ func TestNewCluster(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		db, dbmock, err := sqlmock.New()
+		db, _, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db.Close()
-
-		// expect database client to be closed
-		dbmock.ExpectClose()
 
 		nodes := []*Node[*sql.DB]{
 			NewNode("shimba", db),
 		}
 
 		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
-		defer func() { require.NoError(t, cl.Close()) }()
-
 		assert.NoError(t, err)
 		assert.NotNil(t, cl)
 	})
 }
 
-func TestClusterClose(t *testing.T) {
+func TestCluster_Close(t *testing.T) {
 	t.Run("no_errors", func(t *testing.T) {
 		db1, dbmock1, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db1.Close()
 
 		db2, dbmock2, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db1.Close()
 
 		// expect database client to be closed
 		dbmock1.ExpectClose()
@@ -85,11 +77,9 @@ func TestClusterClose(t *testing.T) {
 	t.Run("multiple_errors", func(t *testing.T) {
 		db1, dbmock1, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db1.Close()
 
 		db2, dbmock2, err := sqlmock.New()
 		require.NoError(t, err)
-		defer db1.Close()
 
 		// expect database client to be closed
 		dbmock1.ExpectClose().WillReturnError(io.EOF)
@@ -113,11 +103,11 @@ func TestClusterClose(t *testing.T) {
 	})
 }
 
-func TestClusterErr(t *testing.T) {
+func TestCluster_Err(t *testing.T) {
 	t.Run("no_error", func(t *testing.T) {
 		cl := new(Cluster[*sql.DB])
 		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{})
-		assert.NoError(t, cl.Err(), io.EOF)
+		assert.NoError(t, cl.Err())
 	})
 
 	t.Run("has_error", func(t *testing.T) {
@@ -137,5 +127,162 @@ func TestClusterErr(t *testing.T) {
 		cl.checkedNodes.Store(checkedNodes)
 
 		assert.ErrorIs(t, cl.Err(), io.EOF)
+	})
+}
+
+func TestCluster_Node(t *testing.T) {
+	t.Run("no_nodes", func(t *testing.T) {
+		cl := new(Cluster[*sql.DB])
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{})
+
+		// all criterias must return nil node
+		for i := Alive; i < maxNodeCriteria; i++ {
+			node := cl.Node(NodeStateCriteria(i))
+			assert.Nil(t, node)
+		}
+	})
+
+	t.Run("alive", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		cl := new(Cluster[*sql.DB])
+		cl.picker = new(RandomNodePicker[*sql.DB])
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			alive: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		})
+
+		assert.Equal(t, node, cl.Node(Alive))
+	})
+
+	t.Run("primary", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		cl := new(Cluster[*sql.DB])
+		cl.picker = new(RandomNodePicker[*sql.DB])
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		})
+
+		assert.Equal(t, node, cl.Node(Primary))
+		// we will return node on Prefer* creterias also
+		assert.Equal(t, node, cl.Node(PreferPrimary))
+		assert.Equal(t, node, cl.Node(PreferStandby))
+	})
+
+	t.Run("standby", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		cl := new(Cluster[*sql.DB])
+		cl.picker = new(RandomNodePicker[*sql.DB])
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		})
+
+		assert.Equal(t, node, cl.Node(Standby))
+		// we will return node on Prefer* creterias also
+		assert.Equal(t, node, cl.Node(PreferPrimary))
+		assert.Equal(t, node, cl.Node(PreferStandby))
+	})
+
+	t.Run("prefer_primary", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		cl := new(Cluster[*sql.DB])
+		cl.picker = new(RandomNodePicker[*sql.DB])
+
+		// must pick from primaries
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		})
+		assert.Equal(t, node, cl.Node(PreferPrimary))
+
+		// must pick from standbys
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		})
+		assert.Equal(t, node, cl.Node(PreferPrimary))
+	})
+
+	t.Run("prefer_standby", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		cl := new(Cluster[*sql.DB])
+		cl.picker = new(RandomNodePicker[*sql.DB])
+
+		// must pick from standbys
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		})
+		assert.Equal(t, node, cl.Node(PreferStandby))
+
+		// must pick from primaries
+		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		})
+		assert.Equal(t, node, cl.Node(PreferStandby))
 	})
 }

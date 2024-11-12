@@ -29,6 +29,10 @@ const (
 	PreferPrimary
 	// PreferStandby is a criteria to choose standby or any alive node
 	PreferStandby
+
+	// maxNodeCriteria is for testing purposes only
+	// any new criteria must be added above this constant
+	maxNodeCriteria
 )
 
 type Node[T Querier] struct {

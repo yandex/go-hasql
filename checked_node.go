@@ -124,8 +124,8 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 	slices.SortFunc(checked, compareFn)
 
 	// split checked nodes by roles
-	// in almost all cases there is only one master node in cluster
-	primaries := make([]CheckedNode[T], 1)
+	// in almost all cases there is only one primary node in cluster
+	primaries := make([]CheckedNode[T], 0, 1)
 	standbys := make([]CheckedNode[T], 0, len(checked))
 	for _, cn := range checked {
 		switch cn.Info.Role() {
@@ -146,8 +146,8 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 	res := CheckedNodes[T]{
 		discovered: discoveredNodes,
 		alive:      checked,
-		primaries:  make([]CheckedNode[T], 0, 1),
-		standbys:   make([]CheckedNode[T], 0, len(checked)),
+		primaries:  primaries,
+		standbys:   standbys,
 		err: func() error {
 			if len(errs) != 0 {
 				return errs

@@ -28,18 +28,19 @@ type NodeDiscoverer[T Querier] interface {
 	DiscoverNodes(context.Context) ([]*Node[T], error)
 }
 
-var _ NodeDiscoverer[*sql.DB] = (*staticNodeDiscoverer[*sql.DB])(nil)
+// StaticNodeDiscoverer implements NodeDiscoverer
+var _ NodeDiscoverer[*sql.DB] = (*StaticNodeDiscoverer[*sql.DB])(nil)
 
-// staticNodeDiscoverer returns always returns list of provided nodes
-type staticNodeDiscoverer[T Querier] struct {
+// StaticNodeDiscoverer returns always returns list of provided nodes
+type StaticNodeDiscoverer[T Querier] struct {
 	nodes []*Node[T]
 }
 
 // NewStaticNodeDiscoverer returns new staticNodeDiscoverer instance
-func NewStaticNodeDiscoverer[T Querier](nodes []*Node[T]) staticNodeDiscoverer[T] {
-	return staticNodeDiscoverer[T]{nodes: nodes}
+func NewStaticNodeDiscoverer[T Querier](nodes []*Node[T]) StaticNodeDiscoverer[T] {
+	return StaticNodeDiscoverer[T]{nodes: nodes}
 }
 
-func (s staticNodeDiscoverer[T]) DiscoverNodes(_ context.Context) ([]*Node[T], error) {
+func (s StaticNodeDiscoverer[T]) DiscoverNodes(_ context.Context) ([]*Node[T], error) {
 	return s.nodes, nil
 }

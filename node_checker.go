@@ -38,10 +38,10 @@ type NodeInfoProvider interface {
 	Role() NodeRole
 }
 
+// NodeInfo implements NodeInfoProvider with additional useful information
 var _ NodeInfoProvider = NodeInfo{}
 
-// NodeInfo contains various information about single cluster node.
-// It implements NodeInfoProvider with additional useful information
+// NodeInfo contains various information about single cluster node
 type NodeInfo struct {
 	// Role contains determined node's role in cluster
 	ClusterRole NodeRole
@@ -73,7 +73,7 @@ func (n NodeInfo) ReplicationLag() int {
 	return n.ReplicaLag
 }
 
-// NodeChecker is a function that can perform request to SQL node and retreive various information
+// NodeChecker is a function that can perform request to SQL node and retrieve various information
 type NodeChecker func(context.Context, Querier) (NodeInfoProvider, error)
 
 // PostgreSQLChecker checks state on PostgreSQL node.

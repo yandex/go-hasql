@@ -17,6 +17,7 @@
 package hasql
 
 import (
+	"database/sql"
 	"math/rand/v2"
 	"sync/atomic"
 	"time"
@@ -31,8 +32,10 @@ type NodePicker[T Querier] interface {
 	CompareNodes(a, b CheckedNode[T]) int
 }
 
-// RandomNodePicker implements NodePicker.
-// It returns random node on each call and does not sort checked nodes
+// RandomNodePicker implements NodePicker
+var _ NodePicker[*sql.DB] = (*RandomNodePicker[*sql.DB])(nil)
+
+// RandomNodePicker returns random node on each call and does not sort checked nodes
 type RandomNodePicker[T Querier] struct{}
 
 func (_ *RandomNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
@@ -43,8 +46,10 @@ func (_ *RandomNodePicker[T]) CompareNodes(_, _ CheckedNode[T]) int {
 	return 0
 }
 
-// RoundRobinNodePicker implements NodePicker.
-// It returns next node based on Round Robin algorithm and tries to preserve nodes order across checks
+// RoundRobinNodePicker implements NodePicker
+var _ NodePicker[*sql.DB] = (*RoundRobinNodePicker[*sql.DB])(nil)
+
+// RoundRobinNodePicker returns next node based on Round Robin algorithm and tries to preserve nodes order across checks
 type RoundRobinNodePicker[T Querier] struct {
 	idx uint32
 }
@@ -65,8 +70,10 @@ func (r *RoundRobinNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	return 0
 }
 
-// LatencyNodePicker implements NodePicker.
-// It returns node with least latency and sorts checked nodes by reported latency ascending.
+// LatencyNodePicker implements NodePicker
+var _ NodePicker[*sql.DB] = (*LatencyNodePicker[*sql.DB])(nil)
+
+// LatencyNodePicker returns node with least latency and sorts checked nodes by reported latency ascending.
 // WARNING: This picker requires that NodeInfoProvider can report node's network latency otherwise code will panic!
 type LatencyNodePicker[T Querier] struct{}
 
@@ -87,8 +94,10 @@ func (_ *LatencyNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	return 0
 }
 
-// ReplicationNodePicker implements NodePicker.
-// It returns node with smallest replication lag and sorts checked nodes by reported replication lag ascending.
+// ReplicationNodePicker implements NodePicker
+var _ NodePicker[*sql.DB] = (*ReplicationNodePicker[*sql.DB])(nil)
+
+// ReplicationNodePicker returns node with smallest replication lag and sorts checked nodes by reported replication lag ascending.
 // Note that replication lag reported by checkers can vastly differ from the real situation on standby server.
 // WARNING: This picker requires that NodeInfoProvider can report node's replication lag otherwise code will panic!
 type ReplicationNodePicker[T Querier] struct{}
