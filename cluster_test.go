@@ -137,7 +137,7 @@ func TestCluster_Node(t *testing.T) {
 
 		// all criteria must return nil node
 		for i := Alive; i < maxNodeCriterion; i++ {
-			node := cl.Node(NodeStateCriterion(i))
+			node := cl.Node(i)
 			assert.Nil(t, node)
 		}
 	})
