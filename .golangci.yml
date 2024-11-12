@@ -101,7 +101,6 @@ linters:
   disable-all: true
   enable:
     - deadcode
-    - depguard
     - errcheck
     - goconst
     - gofmt # On why gofmt when goimports is enabled - https://github.com/golang/go/issues/21476

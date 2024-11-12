@@ -16,23 +16,23 @@
 
 package hasql
 
-type NodeStateCriteria uint8
+type NodeStateCriterion uint8
 
 const (
-	// Alive is a criteria to choose any alive node
-	Alive NodeStateCriteria = iota + 1
-	// Primary is a criteria to choose primary node
+	// Alive is a criterion to choose any alive node
+	Alive NodeStateCriterion = iota + 1
+	// Primary is a criterion to choose primary node
 	Primary
-	// Standby is a criteria to choose standby node
+	// Standby is a criterion to choose standby node
 	Standby
-	// PreferPrimary is a criteria to choose primary or any alive node
+	// PreferPrimary is a criterion to choose primary or any alive node
 	PreferPrimary
-	// PreferStandby is a criteria to choose standby or any alive node
+	// PreferStandby is a criterion to choose standby or any alive node
 	PreferStandby
 
-	// maxNodeCriteria is for testing purposes only
-	// any new criteria must be added above this constant
-	maxNodeCriteria
+	// maxNodeCriterion is for testing purposes only
+	// all new criteria must be added above this constant
+	maxNodeCriterion
 )
 
 type Node[T Querier] struct {

@@ -18,18 +18,18 @@ package hasql
 
 // updateSubscriber represents a waiter for newly checked node event
 type updateSubscriber[T Querier] struct {
-	ch       chan *Node[T]
-	criteria NodeStateCriteria
+	ch        chan *Node[T]
+	criterion NodeStateCriterion
 }
 
 // addUpdateSubscriber adds new dubscriber to notification pool
-func (cl *Cluster[T]) addUpdateSubscriber(criteria NodeStateCriteria) <-chan *Node[T] {
+func (cl *Cluster[T]) addUpdateSubscriber(criterion NodeStateCriterion) <-chan *Node[T] {
 	// buffered channel is essential
 	// read WaitForNode function for more information
 	ch := make(chan *Node[T], 1)
 	cl.subscribersMu.Lock()
 	defer cl.subscribersMu.Unlock()
-	cl.subscribers = append(cl.subscribers, updateSubscriber[T]{ch: ch, criteria: criteria})
+	cl.subscribers = append(cl.subscribers, updateSubscriber[T]{ch: ch, criterion: criterion})
 	return ch
 }
 
@@ -46,7 +46,7 @@ func (cl *Cluster[T]) notifyUpdateSubscribers(nodes CheckedNodes[T]) {
 	var nodelessWaiters []updateSubscriber[T]
 	// Notify all waiters
 	for _, subscriber := range cl.subscribers {
-		node := pickNodeByCriteria(nodes, cl.picker, subscriber.criteria)
+		node := pickNodeByCriterion(nodes, cl.picker, subscriber.criterion)
 		if node == nil {
 			// Put waiter back
 			nodelessWaiters = append(nodelessWaiters, subscriber)

@@ -113,22 +113,22 @@ func (cl *Cluster[T]) Err() error {
 }
 
 // Node returns cluster node with specified status
-func (cl *Cluster[T]) Node(criteria NodeStateCriteria) *Node[T] {
-	return pickNodeByCriteria(cl.checkedNodes.Load().(CheckedNodes[T]), cl.picker, criteria)
+func (cl *Cluster[T]) Node(criterion NodeStateCriterion) *Node[T] {
+	return pickNodeByCriterion(cl.checkedNodes.Load().(CheckedNodes[T]), cl.picker, criterion)
 }
 
 // WaitForNode with specified status to appear or until context is canceled
-func (cl *Cluster[T]) WaitForNode(ctx context.Context, criteria NodeStateCriteria) (*Node[T], error) {
+func (cl *Cluster[T]) WaitForNode(ctx context.Context, criterion NodeStateCriterion) (*Node[T], error) {
 	// Node already exists?
-	node := cl.Node(criteria)
+	node := cl.Node(criterion)
 	if node != nil {
 		return node, nil
 	}
 
-	ch := cl.addUpdateSubscriber(criteria)
+	ch := cl.addUpdateSubscriber(criterion)
 
 	// Node might have appeared while we were adding waiter, recheck
-	node = cl.Node(criteria)
+	node = cl.Node(criterion)
 	if node != nil {
 		return node, nil
 	}
@@ -190,11 +190,11 @@ func (cl *Cluster[T]) updateNodes(ctx context.Context) {
 	cl.tracer.NotifiedWaiters()
 }
 
-// pickNodeByCriteria is a helper function to pick a single node by given criteria
-func pickNodeByCriteria[T Querier](nodes CheckedNodes[T], picker NodePicker[T], criteria NodeStateCriteria) *Node[T] {
+// pickNodeByCriterion is a helper function to pick a single node by given criterion
+func pickNodeByCriterion[T Querier](nodes CheckedNodes[T], picker NodePicker[T], criterion NodeStateCriterion) *Node[T] {
 	var subset []CheckedNode[T]
 
-	switch criteria {
+	switch criterion {
 	case Alive:
 		subset = nodes.alive
 	case Primary:

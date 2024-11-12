@@ -135,9 +135,9 @@ func TestCluster_Node(t *testing.T) {
 		cl := new(Cluster[*sql.DB])
 		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{})
 
-		// all criterias must return nil node
-		for i := Alive; i < maxNodeCriteria; i++ {
-			node := cl.Node(NodeStateCriteria(i))
+		// all criteria must return nil node
+		for i := Alive; i < maxNodeCriterion; i++ {
+			node := cl.Node(NodeStateCriterion(i))
 			assert.Nil(t, node)
 		}
 	})
