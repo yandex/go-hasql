@@ -25,28 +25,24 @@ import (
 )
 
 func TestNewStaticNodeDiscoverer(t *testing.T) {
-	nodes := []*Node[*sql.DB]{
-		NewNode("shimba", new(sql.DB)),
-		NewNode("boomba", new(sql.DB)),
-	}
+	node1 := NewNode("shimba", new(sql.DB))
+	node2 := NewNode("boomba", new(sql.DB))
 
-	d := NewStaticNodeDiscoverer(nodes)
+	d := NewStaticNodeDiscoverer(node1, node2)
 	expected := StaticNodeDiscoverer[*sql.DB]{
-		nodes: nodes,
+		nodes: []*Node[*sql.DB]{node1, node2},
 	}
 
 	assert.Equal(t, expected, d)
 }
 
 func TestStaticNodeDiscoverer_DiscoverNodes(t *testing.T) {
-	nodes := []*Node[*sql.DB]{
-		NewNode("shimba", new(sql.DB)),
-		NewNode("boomba", new(sql.DB)),
-	}
+	node1 := NewNode("shimba", new(sql.DB))
+	node2 := NewNode("boomba", new(sql.DB))
 
-	d := NewStaticNodeDiscoverer(nodes)
+	d := NewStaticNodeDiscoverer(node1, node2)
 
 	discovered, err := d.DiscoverNodes(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, nodes, discovered)
+	assert.Equal(t, []*Node[*sql.DB]{node1, node2}, discovered)
 }

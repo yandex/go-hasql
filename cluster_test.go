@@ -37,11 +37,9 @@ func TestNewCluster(t *testing.T) {
 		db, _, err := sqlmock.New()
 		require.NoError(t, err)
 
-		nodes := []*Node[*sql.DB]{
-			NewNode("shimba", db),
-		}
+		node := NewNode("shimba", db)
 
-		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(node), PostgreSQLChecker)
 		assert.NoError(t, err)
 		assert.NotNil(t, cl)
 	})
@@ -59,16 +57,14 @@ func TestCluster_Close(t *testing.T) {
 		dbmock1.ExpectClose()
 		dbmock2.ExpectClose()
 
-		nodes := []*Node[*sql.DB]{
-			NewNode("shimba", db1),
-			NewNode("boomba", db2),
-		}
+		node1 := NewNode("shimba", db1)
+		node2 := NewNode("boomba", db2)
 
-		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(node1, node2), PostgreSQLChecker)
 		require.NoError(t, err)
 
 		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
-			discovered: nodes,
+			discovered: []*Node[*sql.DB]{node1, node2},
 		})
 
 		assert.NoError(t, cl.Close())
@@ -85,16 +81,14 @@ func TestCluster_Close(t *testing.T) {
 		dbmock1.ExpectClose().WillReturnError(io.EOF)
 		dbmock2.ExpectClose().WillReturnError(sql.ErrTxDone)
 
-		nodes := []*Node[*sql.DB]{
-			NewNode("shimba", db1),
-			NewNode("boomba", db2),
-		}
+		node1 := NewNode("shimba", db1)
+		node2 := NewNode("boomba", db2)
 
-		cl, err := NewCluster(NewStaticNodeDiscoverer(nodes), PostgreSQLChecker)
+		cl, err := NewCluster(NewStaticNodeDiscoverer(node1, node2), PostgreSQLChecker)
 		require.NoError(t, err)
 
 		cl.checkedNodes.Store(CheckedNodes[*sql.DB]{
-			discovered: nodes,
+			discovered: []*Node[*sql.DB]{node1, node2},
 		})
 
 		err = cl.Close()

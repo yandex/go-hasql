@@ -37,7 +37,7 @@ type StaticNodeDiscoverer[T Querier] struct {
 }
 
 // NewStaticNodeDiscoverer returns new staticNodeDiscoverer instance
-func NewStaticNodeDiscoverer[T Querier](nodes []*Node[T]) StaticNodeDiscoverer[T] {
+func NewStaticNodeDiscoverer[T Querier](nodes ...*Node[T]) StaticNodeDiscoverer[T] {
 	return StaticNodeDiscoverer[T]{nodes: nodes}
 }
 

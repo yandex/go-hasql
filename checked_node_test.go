@@ -100,11 +100,11 @@ func TestCheckNodes(t *testing.T) {
 			}
 
 			switch mq.name {
-			case "primary":
+			case node1.db.name:
 				return NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}, nil
-			case "standby1":
+			case node2.db.name:
 				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}, nil
-			case "standby2":
+			case node3.db.name:
 				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}, nil
 			default:
 				return NodeInfo{}, nil
@@ -204,11 +204,11 @@ func TestCheckNodes(t *testing.T) {
 			}
 
 			switch mq.name {
-			case "primary":
+			case node1.db.name:
 				return NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}, nil
-			case "standby1":
+			case node2.db.name:
 				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}, nil
-			case "standby2":
+			case node3.db.name:
 				return nil, io.EOF
 			default:
 				return NodeInfo{}, nil
@@ -266,11 +266,11 @@ func TestCheckNodes(t *testing.T) {
 			}
 
 			switch mq.name {
-			case "primary":
+			case node1.db.name:
 				return nil, io.EOF
-			case "standby1":
+			case node2.db.name:
 				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}, nil
-			case "standby2":
+			case node3.db.name:
 				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}, nil
 			default:
 				return NodeInfo{}, nil
