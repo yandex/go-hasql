@@ -20,49 +20,14 @@ import (
 	"context"
 	"database/sql"
 	"io"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var _ NodeDiscoverer[*sql.DB] = (*mockNodesDiscoverer[*sql.DB])(nil)
-
-// mockNodesDiscoverer returns stored results to tests
-type mockNodesDiscoverer[T Querier] struct {
-	nodes []*Node[T]
-	err   error
-}
-
-func (e mockNodesDiscoverer[T]) DiscoverNodes(_ context.Context) ([]*Node[T], error) {
-	return slices.Clone(e.nodes), e.err
-}
-
-var _ Querier = (*mockQuerier)(nil)
-
-type mockQuerier struct {
-	name       string
-	queryFn    func(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	queryRowFn func(ctx context.Context, query string, args ...any) *sql.Row
-}
-
-func (m *mockQuerier) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
-	if m.queryFn != nil {
-		return m.queryFn(ctx, query, args...)
-	}
-	return nil, nil
-}
-
-func (m *mockQuerier) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
-	if m.queryRowFn != nil {
-		return m.queryRowFn(ctx, query, args...)
-	}
-	return nil
-}
-
 func TestCheckNodes(t *testing.T) {
 	t.Run("discovery_error", func(t *testing.T) {
-		discoverer := mockNodesDiscoverer[*sql.DB]{
+		discoverer := mockNodeDiscoverer[*sql.DB]{
 			err: io.EOF,
 		}
 
@@ -88,7 +53,7 @@ func TestCheckNodes(t *testing.T) {
 			db:   &mockQuerier{name: "standby2"},
 		}
 
-		discoverer := mockNodesDiscoverer[*mockQuerier]{
+		discoverer := mockNodeDiscoverer[*mockQuerier]{
 			nodes: []*Node[*mockQuerier]{node1, node2, node3},
 		}
 
@@ -149,7 +114,7 @@ func TestCheckNodes(t *testing.T) {
 			db:   &mockQuerier{name: "standby2"},
 		}
 
-		discoverer := mockNodesDiscoverer[*mockQuerier]{
+		discoverer := mockNodeDiscoverer[*mockQuerier]{
 			nodes: []*Node[*mockQuerier]{node1, node2, node3},
 		}
 
@@ -192,7 +157,7 @@ func TestCheckNodes(t *testing.T) {
 			db:   &mockQuerier{name: "standby2"},
 		}
 
-		discoverer := mockNodesDiscoverer[*mockQuerier]{
+		discoverer := mockNodeDiscoverer[*mockQuerier]{
 			nodes: []*Node[*mockQuerier]{node1, node2, node3},
 		}
 
@@ -254,7 +219,7 @@ func TestCheckNodes(t *testing.T) {
 			db:   &mockQuerier{name: "standby2"},
 		}
 
-		discoverer := mockNodesDiscoverer[*mockQuerier]{
+		discoverer := mockNodeDiscoverer[*mockQuerier]{
 			nodes: []*Node[*mockQuerier]{node1, node2, node3},
 		}
 
