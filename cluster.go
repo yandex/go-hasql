@@ -59,7 +59,6 @@ func NewCluster[T Querier](discoverer NodeDiscoverer[T], checker NodeChecker, op
 		discoverer:     discoverer,
 		checker:        checker,
 		picker:         new(RandomNodePicker[T]),
-		tracer:         BaseTracer[T]{},
 
 		stop: stopFn,
 	}
@@ -176,7 +175,9 @@ func (cl *Cluster[T]) backgroundNodesUpdate(ctx context.Context) {
 // updateNodes performs a new round of cluster state check
 // and notifies all subscribers afterwards
 func (cl *Cluster[T]) updateNodes(ctx context.Context) {
-	cl.tracer.UpdateNodes()
+	if cl.tracer.UpdateNodes != nil {
+		cl.tracer.UpdateNodes()
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, cl.updateTimeout)
 	defer cancel()
@@ -184,9 +185,13 @@ func (cl *Cluster[T]) updateNodes(ctx context.Context) {
 	checked := checkNodes(ctx, cl.discoverer, cl.checker, cl.picker.CompareNodes, cl.tracer)
 	cl.checkedNodes.Store(checked)
 
-	cl.tracer.UpdatedNodes(checked)
+	if cl.tracer.NodesUpdated != nil {
+		cl.tracer.NodesUpdated(checked)
+	}
 
 	cl.notifyUpdateSubscribers(checked)
 
-	cl.tracer.NotifiedWaiters()
+	if cl.tracer.WaitersNotified != nil {
+		cl.tracer.WaitersNotified()
+	}
 }

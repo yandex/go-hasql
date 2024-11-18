@@ -93,7 +93,9 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 				}
 
 				// node is dead - make trace call
-				tracer.NodeDead(cerr)
+				if tracer.NodeDead != nil {
+					tracer.NodeDead(cerr)
+				}
 
 				// store node check error
 				mu.Lock()
@@ -108,7 +110,9 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 			}
 
 			// make trace call about alive node
-			tracer.NodeAlive(cn)
+			if tracer.NodeAlive != nil {
+				tracer.NodeAlive(cn)
+			}
 
 			// store checked alive node
 			mu.Lock()
@@ -139,7 +143,9 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 				node: cn.Node,
 				err:  errors.New("cannot determine node role"),
 			}
-			tracer.NodeDead(cerr)
+			if tracer.NodeDead != nil {
+				tracer.NodeDead(cerr)
+			}
 		}
 	}
 

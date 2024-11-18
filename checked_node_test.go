@@ -31,7 +31,7 @@ func TestCheckNodes(t *testing.T) {
 			err: io.EOF,
 		}
 
-		nodes := checkNodes(context.Background(), discoverer, nil, nil, nil)
+		nodes := checkNodes(context.Background(), discoverer, nil, nil, Tracer[*sql.DB]{})
 		assert.Empty(t, nodes.discovered)
 		assert.Empty(t, nodes.alive)
 		assert.Empty(t, nodes.primaries)
@@ -77,7 +77,7 @@ func TestCheckNodes(t *testing.T) {
 		}
 
 		var picker LatencyNodePicker[*mockQuerier]
-		var tracer BaseTracer[*mockQuerier]
+		var tracer Tracer[*mockQuerier]
 
 		checked := checkNodes(context.Background(), discoverer, checkFn, picker.CompareNodes, tracer)
 
@@ -124,7 +124,7 @@ func TestCheckNodes(t *testing.T) {
 		}
 
 		var picker LatencyNodePicker[*mockQuerier]
-		var tracer BaseTracer[*mockQuerier]
+		var tracer Tracer[*mockQuerier]
 
 		checked := checkNodes(context.Background(), discoverer, checkFn, picker.CompareNodes, tracer)
 
@@ -181,7 +181,7 @@ func TestCheckNodes(t *testing.T) {
 		}
 
 		var picker LatencyNodePicker[*mockQuerier]
-		var tracer BaseTracer[*mockQuerier]
+		var tracer Tracer[*mockQuerier]
 
 		checked := checkNodes(context.Background(), discoverer, checkFn, picker.CompareNodes, tracer)
 
@@ -243,7 +243,7 @@ func TestCheckNodes(t *testing.T) {
 		}
 
 		var picker LatencyNodePicker[*mockQuerier]
-		var tracer BaseTracer[*mockQuerier]
+		var tracer Tracer[*mockQuerier]
 
 		checked := checkNodes(context.Background(), discoverer, checkFn, picker.CompareNodes, tracer)
 
