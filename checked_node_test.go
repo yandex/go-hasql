@@ -266,3 +266,155 @@ func TestCheckNodes(t *testing.T) {
 		assert.Equal(t, expected, checked)
 	})
 }
+
+func TestPickNodeByCriterion(t *testing.T) {
+	t.Run("no_nodes", func(t *testing.T) {
+		nodes := CheckedNodes[*sql.DB]{}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		// all criteria must return nil node
+		for i := Alive; i < maxNodeCriterion; i++ {
+			node := pickNodeByCriterion(nodes, picker, i)
+			assert.Nil(t, node)
+		}
+	})
+
+	t.Run("alive", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		nodes := CheckedNodes[*sql.DB]{
+			alive: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, Alive))
+	})
+
+	t.Run("primary", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		nodes := CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, Primary))
+		// we will return node on Prefer* creterias also
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
+	})
+
+	t.Run("standby", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		nodes := CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, Standby))
+		// we will return node on Prefer* creterias also
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
+	})
+
+	t.Run("prefer_primary", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		// must pick from primaries
+		nodes := CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
+
+		// must pick from standbys
+		nodes = CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		}
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
+	})
+
+	t.Run("prefer_standby", func(t *testing.T) {
+		node := &Node[*sql.DB]{
+			name: "shimba",
+			db:   new(sql.DB),
+		}
+
+		// must pick from standbys
+		nodes := CheckedNodes[*sql.DB]{
+			standbys: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRoleStandby,
+					},
+				},
+			},
+		}
+		picker := new(RandomNodePicker[*sql.DB])
+
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
+
+		// must pick from primaries
+		nodes = CheckedNodes[*sql.DB]{
+			primaries: []CheckedNode[*sql.DB]{
+				{
+					Node: node,
+					Info: NodeInfo{
+						ClusterRole: NodeRolePrimary,
+					},
+				},
+			},
+		}
+		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
+	})
+}
