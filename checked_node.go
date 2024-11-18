@@ -158,3 +158,31 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 
 	return res
 }
+
+// pickNodeByCriterion is a helper function to pick a single node by given criterion
+func pickNodeByCriterion[T Querier](nodes CheckedNodes[T], picker NodePicker[T], criterion NodeStateCriterion) *Node[T] {
+	var subset []CheckedNode[T]
+
+	switch criterion {
+	case Alive:
+		subset = nodes.alive
+	case Primary:
+		subset = nodes.primaries
+	case Standby:
+		subset = nodes.standbys
+	case PreferPrimary:
+		if subset = nodes.primaries; len(subset) == 0 {
+			subset = nodes.standbys
+		}
+	case PreferStandby:
+		if subset = nodes.standbys; len(subset) == 0 {
+			subset = nodes.primaries
+		}
+	}
+
+	if len(subset) == 0 {
+		return nil
+	}
+
+	return picker.PickNode(subset).Node
+}
