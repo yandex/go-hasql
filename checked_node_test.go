@@ -19,6 +19,7 @@ package hasql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"testing"
 
@@ -260,6 +261,68 @@ func TestCheckNodes(t *testing.T) {
 			},
 			err: NodeCheckErrors[*mockQuerier]{
 				{node: node1, err: io.EOF},
+			},
+		}
+
+		assert.Equal(t, expected, checked)
+	})
+
+	t.Run("node_with_unknown_role", func(t *testing.T) {
+		node1 := &Node[*mockQuerier]{
+			name: "shimba",
+			db:   &mockQuerier{name: "unknown"},
+		}
+		node2 := &Node[*mockQuerier]{
+			name: "boomba",
+			db:   &mockQuerier{name: "primary"},
+		}
+		node3 := &Node[*mockQuerier]{
+			name: "looken",
+			db:   &mockQuerier{name: "standby2"},
+		}
+
+		discoverer := mockNodeDiscoverer[*mockQuerier]{
+			nodes: []*Node[*mockQuerier]{node1, node2, node3},
+		}
+
+		// mock node checker func
+		checkFn := func(_ context.Context, q Querier) (NodeInfoProvider, error) {
+			mq, ok := q.(*mockQuerier)
+			if !ok {
+				return NodeInfo{}, nil
+			}
+
+			switch mq.name {
+			case node1.db.name:
+				return NodeInfo{}, nil
+			case node2.db.name:
+				return NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 20}, nil
+			case node3.db.name:
+				return NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}, nil
+			default:
+				return NodeInfo{}, nil
+			}
+		}
+
+		var picker LatencyNodePicker[*mockQuerier]
+		var tracer Tracer[*mockQuerier]
+
+		checked := checkNodes(context.Background(), discoverer, checkFn, picker.CompareNodes, tracer)
+
+		expected := CheckedNodes[*mockQuerier]{
+			discovered: []*Node[*mockQuerier]{node1, node2, node3},
+			alive: []CheckedNode[*mockQuerier]{
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 20}},
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+			},
+			primaries: []CheckedNode[*mockQuerier]{
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 20}},
+			},
+			standbys: []CheckedNode[*mockQuerier]{
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+			},
+			err: NodeCheckErrors[*mockQuerier]{
+				{node: node1, err: errors.New("cannot determine node role")},
 			},
 		}
 

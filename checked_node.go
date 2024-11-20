@@ -128,6 +128,7 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 	slices.SortFunc(checked, compareFn)
 
 	// split checked nodes by roles
+	alive := make([]CheckedNode[T], 0, len(checked))
 	// in almost all cases there is only one primary node in cluster
 	primaries := make([]CheckedNode[T], 0, 1)
 	standbys := make([]CheckedNode[T], 0, len(checked))
@@ -135,14 +136,18 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 		switch cn.Info.Role() {
 		case NodeRolePrimary:
 			primaries = append(primaries, cn)
+			alive = append(alive, cn)
 		case NodeRoleStandby:
 			standbys = append(standbys, cn)
+			alive = append(alive, cn)
 		default:
 			// treat node with undetermined role as dead
 			cerr := NodeCheckError[T]{
 				node: cn.Node,
 				err:  errors.New("cannot determine node role"),
 			}
+			errs = append(errs, cerr)
+
 			if tracer.NodeDead != nil {
 				tracer.NodeDead(cerr)
 			}
@@ -151,7 +156,7 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 
 	res := CheckedNodes[T]{
 		discovered: discoveredNodes,
-		alive:      checked,
+		alive:      alive,
 		primaries:  primaries,
 		standbys:   standbys,
 		err: func() error {
