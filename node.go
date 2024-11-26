@@ -45,7 +45,7 @@ func NewNode[T Querier](name string, db T) *Node[T] {
 	return &Node[T]{name: name, db: db}
 }
 
-// DB returns node's database/sql DB
+// DB returns node's database connection
 func (n *Node[T]) DB() T {
 	return n.db
 }

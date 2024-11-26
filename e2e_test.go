@@ -416,7 +416,6 @@ var _ io.Closer = (*mockQuerier)(nil)
 
 // mockQuerier returns fake SQL results to tests
 type mockQuerier struct {
-	name       string
 	queryFn    func(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	queryRowFn func(ctx context.Context, query string, args ...any) *sql.Row
 	closeFn    func() error
