@@ -17,35 +17,32 @@
 package hasql
 
 import (
-	"errors"
+	"context"
+	"database/sql"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_uncheckedSQLxNode(t *testing.T) {
-	assert.Nil(t, uncheckedSQLxNode(nil))
+func TestNewStaticNodeDiscoverer(t *testing.T) {
+	node1 := NewNode("shimba", new(sql.DB))
+	node2 := NewNode("boomba", new(sql.DB))
 
-	expected := NewNode("foo", &sqlx.DB{})
-	assert.Equal(t, expected, uncheckedSQLxNode(expected))
+	d := NewStaticNodeDiscoverer(node1, node2)
+	expected := StaticNodeDiscoverer[*sql.DB]{
+		nodes: []*Node[*sql.DB]{node1, node2},
+	}
+
+	assert.Equal(t, expected, d)
 }
 
-func Test_checkedSQLxNode(t *testing.T) {
-	node, err := checkedSQLxNode(nil, errors.New("err"))
-	assert.Error(t, err)
-	assert.Nil(t, node)
+func TestStaticNodeDiscoverer_DiscoverNodes(t *testing.T) {
+	node1 := NewNode("shimba", new(sql.DB))
+	node2 := NewNode("boomba", new(sql.DB))
 
-	node, err = checkedSQLxNode(NewNode("foo", &sqlx.DB{}), errors.New("err"))
-	assert.Error(t, err)
-	assert.Nil(t, node)
+	d := NewStaticNodeDiscoverer(node1, node2)
 
-	node, err = checkedSQLxNode(nil, nil)
+	discovered, err := d.DiscoverNodes(context.Background())
 	assert.NoError(t, err)
-	assert.Nil(t, node)
-
-	expected := NewNode("foo", &sqlx.DB{})
-	node, err = checkedSQLxNode(expected, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, node)
+	assert.Equal(t, []*Node[*sql.DB]{node1, node2}, discovered)
 }

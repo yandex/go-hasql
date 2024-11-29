@@ -100,25 +100,20 @@ linters-settings:
 linters:
   disable-all: true
   enable:
-    - deadcode
-    - depguard
     - errcheck
     - goconst
     - gofmt # On why gofmt when goimports is enabled - https://github.com/golang/go/issues/21476
     - goimports
-    - golint
     - gosimple
     - govet
     - ineffassign
-    - maligned
     - misspell
+    - revive
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
 
 issues:
   # List of regexps of issue texts to exclude, empty list by default.

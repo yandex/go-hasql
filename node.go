@@ -16,69 +16,44 @@
 
 package hasql
 
-import (
-	"context"
-	"database/sql"
-	"fmt"
+// NodeStateCriterion represents a node selection criterion
+type NodeStateCriterion uint8
+
+const (
+	// Alive is a criterion to choose any alive node
+	Alive NodeStateCriterion = iota + 1
+	// Primary is a criterion to choose primary node
+	Primary
+	// Standby is a criterion to choose standby node
+	Standby
+	// PreferPrimary is a criterion to choose primary or any alive node
+	PreferPrimary
+	// PreferStandby is a criterion to choose standby or any alive node
+	PreferStandby
+
+	// maxNodeCriterion is for testing purposes only
+	// all new criteria must be added above this constant
+	maxNodeCriterion
 )
 
-// Node of single cluster
-type Node interface {
-	fmt.Stringer
-
-	Addr() string
-	DB() *sql.DB
+// Node holds reference to database connection pool with some additional data
+type Node[T Querier] struct {
+	name string
+	db   T
 }
 
-type sqlNode struct {
-	addr string
-	db   *sql.DB
+// NewNode constructs node with given SQL querier
+func NewNode[T Querier](name string, db T) *Node[T] {
+	return &Node[T]{name: name, db: db}
 }
 
-var _ Node = &sqlNode{}
-
-// NewNode constructs node from database/sql DB
-func NewNode(addr string, db *sql.DB) Node {
-	return &sqlNode{addr: addr, db: db}
-}
-
-// Addr returns node's address
-func (n *sqlNode) Addr() string {
-	return n.addr
-}
-
-// DB returns node's database/sql DB
-func (n *sqlNode) DB() *sql.DB {
+// DB returns node's database connection
+func (n *Node[T]) DB() T {
 	return n.db
 }
 
-// String implements Stringer
-func (n *sqlNode) String() string {
-	return n.addr
+// String implements Stringer.
+// It uses name provided at construction to uniquely identify a single node
+func (n *Node[T]) String() string {
+	return n.name
 }
-
-// NodeStateCriteria for choosing a node
-type NodeStateCriteria int
-
-const (
-	// Alive for choosing any alive node
-	Alive NodeStateCriteria = iota + 1
-	// Primary for choosing primary node
-	Primary
-	// Standby for choosing standby node
-	Standby
-	// PreferPrimary for choosing primary or any alive node
-	PreferPrimary
-	// PreferStandby for choosing standby or any alive node
-	PreferStandby
-)
-
-// NodeChecker is a signature for functions that check if specific node is alive and is primary.
-// Returns true for primary and false if not. If error is returned, node is considered dead.
-// Check function can be used to perform a query returning single boolean value that signals
-// if node is primary or not.
-type NodeChecker func(ctx context.Context, db *sql.DB) (bool, error)
-
-// NodePicker is a signature for functions that determine how to pick single node from set of nodes.
-// Nodes passed to the picker function are sorted according to latency (from lowest to greatest).
-type NodePicker func(nodes []Node) Node

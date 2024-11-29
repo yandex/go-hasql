@@ -17,29 +17,15 @@
 package hasql
 
 import (
-	"math/rand"
-	"sync/atomic"
+	"context"
+	"database/sql"
 )
 
-// PickNodeRandom returns random node from nodes set
-func PickNodeRandom() NodePicker {
-	return func(nodes []Node) Node {
-		return nodes[rand.Intn(len(nodes))]
-	}
-}
-
-// PickNodeRoundRobin returns next node based on Round Robin algorithm
-func PickNodeRoundRobin() NodePicker {
-	var nodeIdx uint32
-	return func(nodes []Node) Node {
-		n := atomic.AddUint32(&nodeIdx, 1)
-		return nodes[(int(n)-1)%len(nodes)]
-	}
-}
-
-// PickNodeClosest returns node with least latency
-func PickNodeClosest() NodePicker {
-	return func(nodes []Node) Node {
-		return nodes[0]
-	}
+// Querier describes abstract base SQL client such as database/sql.DB.
+// Most of database/sql compatible third-party libraries already implement it
+type Querier interface {
+	// QueryRowContext executes a query that is expected to return at most one row
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	// QueryContext executes a query that returns rows, typically a SELECT
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
