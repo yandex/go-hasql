@@ -41,6 +41,7 @@ func NewStaticNodeDiscoverer[T Querier](nodes ...*Node[T]) StaticNodeDiscoverer[
 	return StaticNodeDiscoverer[T]{nodes: nodes}
 }
 
+// DiscoverNodes returns static list of nodes from StaticNodeDiscoverer
 func (s StaticNodeDiscoverer[T]) DiscoverNodes(_ context.Context) ([]*Node[T], error) {
 	return s.nodes, nil
 }

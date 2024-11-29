@@ -14,6 +14,7 @@
    limitations under the License.
 */
 
+// Package hasql provides simple and reliable way to access high-availability database setups with multiple hosts.
 package hasql
 
 import (

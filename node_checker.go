@@ -26,8 +26,11 @@ import (
 type NodeRole uint8
 
 const (
+	// NodeRoleUnknown used to report node with unconvetional role in cluster
 	NodeRoleUnknown NodeRole = iota
+	// NodeRolePrimary used to report node with primary role in cluster
 	NodeRolePrimary
+	// NodeRoleStandby used to report node with standby role in cluster
 	NodeRoleStandby
 )
 
@@ -117,7 +120,7 @@ func PostgreSQLChecker(ctx context.Context, db Querier) (NodeInfoProvider, error
 	}, nil
 }
 
-// MySQL checks state of MySQL node.
+// MySQLChecker checks state of MySQL node.
 // ATTENTION: database user must have REPLICATION CLIENT privilege to perform underlying query.
 func MySQLChecker(ctx context.Context, db Querier) (NodeInfoProvider, error) {
 	start := time.Now()
@@ -152,7 +155,7 @@ func MySQLChecker(ctx context.Context, db Querier) (NodeInfoProvider, error) {
 	}, nil
 }
 
-// MSSQL checks state of MSSQL node
+// MSSQLChecker checks state of MSSQL node
 func MSSQLChecker(ctx context.Context, db Querier) (NodeInfoProvider, error) {
 	start := time.Now()
 

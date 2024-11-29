@@ -120,7 +120,7 @@ func TestCheckNodes(t *testing.T) {
 		}
 
 		// mock node checker func
-		checkFn := func(_ context.Context, q Querier) (NodeInfoProvider, error) {
+		checkFn := func(_ context.Context, _ Querier) (NodeInfoProvider, error) {
 			return nil, io.EOF
 		}
 

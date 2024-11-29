@@ -16,6 +16,7 @@
 
 package hasql
 
+// NodeStateCriterion represents a node selection criterion
 type NodeStateCriterion uint8
 
 const (
@@ -35,6 +36,7 @@ const (
 	maxNodeCriterion
 )
 
+// Node holds reference to database connection pool with some additional data
 type Node[T Querier] struct {
 	name string
 	db   T

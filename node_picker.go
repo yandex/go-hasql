@@ -38,10 +38,12 @@ var _ NodePicker[*sql.DB] = (*RandomNodePicker[*sql.DB])(nil)
 // RandomNodePicker returns random node on each call and does not sort checked nodes
 type RandomNodePicker[T Querier] struct{}
 
+// PickNode returns random node from picker
 func (_ *RandomNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[rand.IntN(len(nodes))]
 }
 
+// CompareNodes always treats nodes as equal, effectively not changing nodes order
 func (_ *RandomNodePicker[T]) CompareNodes(_, _ CheckedNode[T]) int {
 	return 0
 }
@@ -54,11 +56,13 @@ type RoundRobinNodePicker[T Querier] struct {
 	idx uint32
 }
 
+// PickNode returns next node in Round-Robin sequence
 func (r *RoundRobinNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	n := atomic.AddUint32(&r.idx, 1)
 	return nodes[(int(n)-1)%len(nodes)]
 }
 
+// CompareNodes performs lexicographical comparison of two nodes
 func (r *RoundRobinNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	aName, bName := a.Node.String(), b.Node.String()
 	if aName < bName {
@@ -77,10 +81,12 @@ var _ NodePicker[*sql.DB] = (*LatencyNodePicker[*sql.DB])(nil)
 // WARNING: This picker requires that NodeInfoProvider can report node's network latency otherwise code will panic!
 type LatencyNodePicker[T Querier] struct{}
 
+// PickNode returns node with least network latency
 func (_ *LatencyNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[0]
 }
 
+// CompareNodes performs nodes comparison based on reported network latency
 func (_ *LatencyNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	aLatency := a.Info.(interface{ Latency() time.Duration }).Latency()
 	bLatency := b.Info.(interface{ Latency() time.Duration }).Latency()
@@ -102,10 +108,12 @@ var _ NodePicker[*sql.DB] = (*ReplicationNodePicker[*sql.DB])(nil)
 // WARNING: This picker requires that NodeInfoProvider can report node's replication lag otherwise code will panic!
 type ReplicationNodePicker[T Querier] struct{}
 
+// PickNode returns node with lowest replication lag value
 func (_ *ReplicationNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[0]
 }
 
+// CompareNodes performs nodes comparison based on reported replication lag
 func (_ *ReplicationNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	aLag := a.Info.(interface{ ReplicationLag() int }).ReplicationLag()
 	bLag := b.Info.(interface{ ReplicationLag() int }).ReplicationLag()

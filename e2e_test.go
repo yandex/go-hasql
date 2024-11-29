@@ -333,7 +333,7 @@ func TestEnd2End_FlakyCluster(t *testing.T) {
 	// it will fail with error on every second attempt to query state
 	var attempts uint32
 	db1 := &mockQuerier{
-		queryFn: func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+		queryFn: func(_ context.Context, _ string, _ ...any) (*sql.Rows, error) {
 			call := atomic.AddUint32(&attempts, 1)
 			if call%2 == 0 {
 				return nil, io.EOF
@@ -344,12 +344,12 @@ func TestEnd2End_FlakyCluster(t *testing.T) {
 
 	// set db2 and db3 to be standbys
 	db2 := &mockQuerier{
-		queryFn: func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+		queryFn: func(_ context.Context, _ string, _ ...any) (*sql.Rows, error) {
 			return nil, errIsStandby
 		},
 	}
 	db3 := &mockQuerier{
-		queryFn: func(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+		queryFn: func(_ context.Context, _ string, _ ...any) (*sql.Rows, error) {
 			return nil, errIsStandby
 		},
 	}
