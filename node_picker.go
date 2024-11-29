@@ -39,12 +39,12 @@ var _ NodePicker[*sql.DB] = (*RandomNodePicker[*sql.DB])(nil)
 type RandomNodePicker[T Querier] struct{}
 
 // PickNode returns random node from picker
-func (_ *RandomNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
+func (*RandomNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[rand.IntN(len(nodes))]
 }
 
 // CompareNodes always treats nodes as equal, effectively not changing nodes order
-func (_ *RandomNodePicker[T]) CompareNodes(_, _ CheckedNode[T]) int {
+func (*RandomNodePicker[T]) CompareNodes(_, _ CheckedNode[T]) int {
 	return 0
 }
 
@@ -82,12 +82,12 @@ var _ NodePicker[*sql.DB] = (*LatencyNodePicker[*sql.DB])(nil)
 type LatencyNodePicker[T Querier] struct{}
 
 // PickNode returns node with least network latency
-func (_ *LatencyNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
+func (*LatencyNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[0]
 }
 
 // CompareNodes performs nodes comparison based on reported network latency
-func (_ *LatencyNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
+func (*LatencyNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	aLatency := a.Info.(interface{ Latency() time.Duration }).Latency()
 	bLatency := b.Info.(interface{ Latency() time.Duration }).Latency()
 
@@ -109,12 +109,12 @@ var _ NodePicker[*sql.DB] = (*ReplicationNodePicker[*sql.DB])(nil)
 type ReplicationNodePicker[T Querier] struct{}
 
 // PickNode returns node with lowest replication lag value
-func (_ *ReplicationNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
+func (*ReplicationNodePicker[T]) PickNode(nodes []CheckedNode[T]) CheckedNode[T] {
 	return nodes[0]
 }
 
 // CompareNodes performs nodes comparison based on reported replication lag
-func (_ *ReplicationNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
+func (*ReplicationNodePicker[T]) CompareNodes(a, b CheckedNode[T]) int {
 	aLag := a.Info.(interface{ ReplicationLag() int }).ReplicationLag()
 	bLag := b.Info.(interface{ ReplicationLag() int }).ReplicationLag()
 
