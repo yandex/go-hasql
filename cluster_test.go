@@ -178,7 +178,7 @@ func TestCluster_Node(t *testing.T) {
 		})
 
 		assert.Equal(t, node, cl.Node(Primary))
-		// we will return node on Prefer* creterias also
+		// we will return node on Prefer* criteria also
 		assert.Equal(t, node, cl.Node(PreferPrimary))
 		assert.Equal(t, node, cl.Node(PreferStandby))
 	})
@@ -203,7 +203,7 @@ func TestCluster_Node(t *testing.T) {
 		})
 
 		assert.Equal(t, node, cl.Node(Standby))
-		// we will return node on Prefer* creterias also
+		// we will return node on Prefer* criteria also
 		assert.Equal(t, node, cl.Node(PreferPrimary))
 		assert.Equal(t, node, cl.Node(PreferStandby))
 	})

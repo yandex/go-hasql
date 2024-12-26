@@ -35,7 +35,7 @@ func WithUpdateTimeout[T Querier](d time.Duration) ClusterOpt[T] {
 	}
 }
 
-// WithNodePicker sets algorithm for node selection (e.g. random, round robin etc)
+// WithNodePicker sets algorithm for node selection (e.g. random, round robin etc.)
 func WithNodePicker[T Querier](picker NodePicker[T]) ClusterOpt[T] {
 	return func(cl *Cluster[T]) {
 		cl.picker = picker

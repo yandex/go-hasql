@@ -22,7 +22,7 @@ type updateSubscriber[T Querier] struct {
 	criterion NodeStateCriterion
 }
 
-// addUpdateSubscriber adds new dubscriber to notification pool
+// addUpdateSubscriber adds new subscriber to notification pool
 func (cl *Cluster[T]) addUpdateSubscriber(criterion NodeStateCriterion) <-chan *Node[T] {
 	// buffered channel is essential
 	// read WaitForNode function for more information
@@ -33,7 +33,7 @@ func (cl *Cluster[T]) addUpdateSubscriber(criterion NodeStateCriterion) <-chan *
 	return ch
 }
 
-// notifyUpdateSubscribers sends appropriate nodes to registered subsribers.
+// notifyUpdateSubscribers sends appropriate nodes to registered subscribers.
 // This function uses newly checked nodes to avoid race conditions
 func (cl *Cluster[T]) notifyUpdateSubscribers(nodes CheckedNodes[T]) {
 	cl.subscribersMu.Lock()

@@ -382,7 +382,7 @@ func TestPickNodeByCriterion(t *testing.T) {
 		picker := new(RandomNodePicker[*sql.DB])
 
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, Primary))
-		// we will return node on Prefer* creterias also
+		// we will return node on Prefer* criteria also
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
 	})
@@ -406,7 +406,7 @@ func TestPickNodeByCriterion(t *testing.T) {
 		picker := new(RandomNodePicker[*sql.DB])
 
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, Standby))
-		// we will return node on Prefer* creterias also
+		// we will return node on Prefer* criteria also
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferPrimary))
 		assert.Equal(t, node, pickNodeByCriterion(nodes, picker, PreferStandby))
 	})

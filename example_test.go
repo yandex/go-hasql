@@ -24,7 +24,7 @@ import (
 	"golang.yandex/hasql/v2"
 )
 
-// ExampleCluster shows how to setup basic hasql cluster with some suctom settings
+// ExampleCluster shows how to setup basic hasql cluster with some custom settings
 func ExampleCluster() {
 	// open connections to database instances
 	db1, err := sql.Open("pgx", "host1.example.com")

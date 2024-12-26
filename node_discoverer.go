@@ -31,7 +31,7 @@ type NodeDiscoverer[T Querier] interface {
 // StaticNodeDiscoverer implements NodeDiscoverer
 var _ NodeDiscoverer[*sql.DB] = (*StaticNodeDiscoverer[*sql.DB])(nil)
 
-// StaticNodeDiscoverer returns always returns list of provided nodes
+// StaticNodeDiscoverer always returns list of provided nodes
 type StaticNodeDiscoverer[T Querier] struct {
 	nodes []*Node[T]
 }
