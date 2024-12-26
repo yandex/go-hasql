@@ -26,7 +26,7 @@ import (
 type NodeRole uint8
 
 const (
-	// NodeRoleUnknown used to report node with unconvetional role in cluster
+	// NodeRoleUnknown used to report node with unconventional role in cluster
 	NodeRoleUnknown NodeRole = iota
 	// NodeRolePrimary used to report node with primary role in cluster
 	NodeRolePrimary
