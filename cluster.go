@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"iter"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -114,7 +115,31 @@ func (cl *Cluster[T]) Err() error {
 
 // Node returns cluster node with specified status
 func (cl *Cluster[T]) Node(criterion NodeStateCriterion) *Node[T] {
-	return pickNodeByCriterion(cl.checkedNodes.Load().(CheckedNodes[T]), cl.picker, criterion)
+	checked := cl.checkedNodes.Load().(CheckedNodes[T])
+	return pickNodeByCriterion(checked, cl.picker, criterion)
+}
+
+// NodesIter returns iterator over a set of nodes.
+// Set content is determined by given criterion. For example PreferStandby criterion
+// will return next sequence: [standby1, standby2, standby3, primary1].
+// Nodes order in sequence is determined by cluster NodePicker.
+// It is guaranteed that iterator will never return nil Node.
+func (cl *Cluster[T]) NodesIter(criterion NodeStateCriterion) iter.Seq[*Node[T]] {
+	return func(yield func(*Node[T]) bool) {
+		checked := cl.checkedNodes.Load().(CheckedNodes[T])
+		seq := pickNodesSeqByCriterion(checked, criterion)
+
+		for _, node := range seq {
+			// skip dead nodes
+			if node.Node == nil {
+				continue
+			}
+
+			if !yield(node.Node) {
+				return
+			}
+		}
+	}
 }
 
 // WaitForNode with specified status to appear or until context is canceled
