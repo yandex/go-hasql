@@ -96,6 +96,16 @@ func TestCheckNodes(t *testing.T) {
 				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
 				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
 			},
+			primariesPrior: []CheckedNode[*mockQuerier]{
+				{Node: node1, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}},
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
+			},
+			standbysPrior: []CheckedNode[*mockQuerier]{
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
+				{Node: node1, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}},
+			},
 		}
 
 		assert.Equal(t, expected, checked)
@@ -198,6 +208,14 @@ func TestCheckNodes(t *testing.T) {
 			standbys: []CheckedNode[*mockQuerier]{
 				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
 			},
+			primariesPrior: []CheckedNode[*mockQuerier]{
+				{Node: node1, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}},
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+			},
+			standbysPrior: []CheckedNode[*mockQuerier]{
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node1, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 100}},
+			},
 			err: NodeCheckErrors[*mockQuerier]{
 				{node: node3, err: io.EOF},
 			},
@@ -256,6 +274,14 @@ func TestCheckNodes(t *testing.T) {
 			},
 			primaries: []CheckedNode[*mockQuerier]{},
 			standbys: []CheckedNode[*mockQuerier]{
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
+			},
+			primariesPrior: []CheckedNode[*mockQuerier]{
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
+			},
+			standbysPrior: []CheckedNode[*mockQuerier]{
 				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
 				{Node: node2, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 70}},
 			},
@@ -320,6 +346,14 @@ func TestCheckNodes(t *testing.T) {
 			},
 			standbys: []CheckedNode[*mockQuerier]{
 				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+			},
+			primariesPrior: []CheckedNode[*mockQuerier]{
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 20}},
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+			},
+			standbysPrior: []CheckedNode[*mockQuerier]{
+				{Node: node3, Info: NodeInfo{ClusterRole: NodeRoleStandby, NetworkLatency: 50}},
+				{Node: node2, Info: NodeInfo{ClusterRole: NodeRolePrimary, NetworkLatency: 20}},
 			},
 			err: NodeCheckErrors[*mockQuerier]{
 				{node: node1, err: errors.New("cannot determine node role")},

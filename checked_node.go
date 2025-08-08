@@ -26,11 +26,13 @@ import (
 
 // CheckedNodes holds references to all available cluster nodes
 type CheckedNodes[T Querier] struct {
-	discovered []*Node[T]
-	alive      []CheckedNode[T]
-	primaries  []CheckedNode[T]
-	standbys   []CheckedNode[T]
-	err        error
+	discovered     []*Node[T]
+	alive          []CheckedNode[T]
+	primaries      []CheckedNode[T]
+	standbys       []CheckedNode[T]
+	primariesPrior []CheckedNode[T]
+	standbysPrior  []CheckedNode[T]
+	err            error
 }
 
 // Discovered returns a list of nodes discovered in cluster
@@ -132,14 +134,19 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 	// in almost all cases there is only one primary node in cluster
 	primaries := make([]CheckedNode[T], 0, 1)
 	standbys := make([]CheckedNode[T], 0, len(checked))
+	// preordered criterion lists
+	primariesPrior := make([]CheckedNode[T], 0, len(checked))
+	standbiesPrior := make([]CheckedNode[T], 0, len(checked))
 	for _, cn := range checked {
 		switch cn.Info.Role() {
 		case NodeRolePrimary:
 			primaries = append(primaries, cn)
 			alive = append(alive, cn)
+			primariesPrior = append(primariesPrior, cn)
 		case NodeRoleStandby:
 			standbys = append(standbys, cn)
 			alive = append(alive, cn)
+			standbiesPrior = append(standbiesPrior, cn)
 		default:
 			// treat node with undetermined role as dead
 			cerr := NodeCheckError[T]{
@@ -154,11 +161,17 @@ func checkNodes[T Querier](ctx context.Context, discoverer NodeDiscoverer[T], ch
 		}
 	}
 
+	// finish criterion lists fill up
+	primariesPrior = append(primariesPrior, standbys...)
+	standbiesPrior = append(standbiesPrior, primaries...)
+
 	res := CheckedNodes[T]{
-		discovered: discoveredNodes,
-		alive:      alive,
-		primaries:  primaries,
-		standbys:   standbys,
+		discovered:     discoveredNodes,
+		alive:          alive,
+		primaries:      primaries,
+		standbys:       standbys,
+		primariesPrior: primariesPrior,
+		standbysPrior:  standbiesPrior,
 		err: func() error {
 			if len(errs) != 0 {
 				return errs
@@ -196,4 +209,22 @@ func pickNodeByCriterion[T Querier](nodes CheckedNodes[T], picker NodePicker[T],
 	}
 
 	return picker.PickNode(subset).Node
+}
+
+// pickNodesSeqByCriterion is a helper function that constructs a nodes sequence by given criterion
+func pickNodesSeqByCriterion[T Querier](nodes CheckedNodes[T], criterion NodeStateCriterion) []CheckedNode[T] {
+	switch criterion {
+	case Alive:
+		return nodes.alive
+	case Primary:
+		return nodes.primaries
+	case Standby:
+		return nodes.standbys
+	case PreferPrimary:
+		return nodes.primariesPrior
+	case PreferStandby:
+		return nodes.standbysPrior
+	default:
+		return nil
+	}
 }
