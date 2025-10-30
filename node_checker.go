@@ -34,6 +34,18 @@ const (
 	NodeRoleStandby
 )
 
+// String returns string representation of NodeRole
+func (r NodeRole) String() string {
+	switch r {
+	case NodeRolePrimary:
+		return "primary"
+	case NodeRoleStandby:
+		return "standby"
+	default:
+		return "unknown"
+	}
+}
+
 // NodeInfoProvider information about single cluster node
 type NodeInfoProvider interface {
 	// Role reports role of node in cluster.
