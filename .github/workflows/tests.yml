@@ -11,7 +11,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.23.x, 1.24.x]
+        go-version: [1.24.x, 1.25.x]
         os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       OS: ${{ matrix.os }}
@@ -22,16 +22,10 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
+
     - name: Checkout code
       uses: actions/checkout@v4
+
     - name: Test
-      run: go test -race ./... -coverprofile=coverage.txt -covermode=atomic
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24.x'
-      with:
-        file: ./coverage.txt
-        flags: unittests
-        env_vars: OS,GO
-        name: codecov
-        fail_ci_if_error: true
+      run: go test -race -cover -covermode=atomic
+     

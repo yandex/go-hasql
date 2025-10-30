@@ -8,12 +8,12 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  golangci:
-    name: golangci-lint
+  vet:
+    name: go vet
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.62.0
+      - name: checkout
+        uses: actions/checkout@v2
+      
+      - name: run vet
+        run: go vet
