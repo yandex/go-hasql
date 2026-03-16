@@ -216,8 +216,4 @@ func (cl *Cluster[T]) updateNodes(ctx context.Context) {
 	}
 
 	cl.notifyUpdateSubscribers(checked)
-
-	if cl.tracer.WaitersNotified != nil {
-		cl.tracer.WaitersNotified()
-	}
 }
