@@ -58,5 +58,11 @@ func (cl *Cluster[T]) notifyUpdateSubscribers(nodes CheckedNodes[T]) {
 		// No need to close channel since we write only once and forget it so does the 'client'
 	}
 
+	// call tracer callback only if at least one waiter has been notified
+	if len(cl.subscribers) != len(nodelessWaiters) &&
+		cl.tracer.WaitersNotified != nil {
+		cl.tracer.WaitersNotified()
+	}
+
 	cl.subscribers = nodelessWaiters
 }
