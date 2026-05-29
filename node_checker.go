@@ -101,7 +101,7 @@ func PostgreSQLChecker(ctx context.Context, db Querier) (NodeInfoProvider, error
 	err := db.
 		QueryRowContext(ctx, `
 			SELECT
-				((pg_is_in_recovery())::int + 1) AS role,
+				((current_setting('transaction_read_only')::boolean)::int + 1) AS role,
 				pg_last_wal_receive_lsn() - pg_last_wal_replay_lsn() AS replication_lag
 			;
 		`).

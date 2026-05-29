@@ -45,19 +45,19 @@ func TestEnd2End_AliveCluster(t *testing.T) {
 	require.NoError(t, err)
 
 	// set db1 to be primary node
-	mock1.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock1.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRolePrimary, 0),
 		)
 
 	// set db2 and db3 to be standby nodes
-	mock2.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock2.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRoleStandby, 0),
 		)
-	mock3.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock3.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRoleStandby, 10),
@@ -114,19 +114,19 @@ func TestEnd2End_SingleDeadNodeCluster(t *testing.T) {
 	require.NoError(t, err)
 
 	// set db1 to be primary node
-	mock1.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock1.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRolePrimary, 0),
 		)
 	// set db2 to be standby node
-	mock2.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock2.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRoleStandby, 0),
 		)
 	// db3 will be always dead
-	mock3.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock3.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillDelayFor(time.Second).
 		WillReturnError(io.EOF)
 
@@ -192,16 +192,16 @@ func TestEnd2End_NoPrimaryCluster(t *testing.T) {
 	require.NoError(t, err)
 
 	// db1 is always dead
-	mock1.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock1.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnError(io.EOF)
 	// set db2 to be standby node
-	mock2.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock2.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRoleStandby, 10),
 		)
 	// set db3 to be standby node
-	mock3.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock3.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnRows(sqlmock.
 			NewRows([]string{"role", "lag"}).
 			AddRow(hasql.NodeRoleStandby, 0),
@@ -260,13 +260,13 @@ func TestEnd2End_DeadCluster(t *testing.T) {
 	require.NoError(t, err)
 
 	// db1 is always dead
-	mock1.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock1.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnError(io.EOF)
 	// set db2 to be standby node
-	mock2.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock2.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnError(io.EOF)
 	// set db3 to be standby node
-	mock3.ExpectQuery(`SELECT.*pg_is_in_recovery`).
+	mock3.ExpectQuery(`SELECT.*current_setting('transaction_read_only')::boolean`).
 		WillReturnError(io.EOF)
 
 	// all pools must be closed in the end
